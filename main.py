@@ -4,6 +4,7 @@ import rbot
 from info import useragent, client_id, client_code, bot_username, bot_pass, ocr_api_key
 
 
+
 twitterlinker = rbot.rBot(useragent, client_id, client_code, bot_username, bot_pass)
 twitterlinker.get_token()
 alreadyanswered = []
@@ -76,7 +77,7 @@ while True:
                         username, twitlink)
                 if wordcount <= 4:
                     messagetxt += "\r\ntweeti bulmak icin kısaltarak aramak zorunda kaldım. sonuç doğru olmayabilir."
-            messagetxt +='\r\n\nu/peroksizom^beni ^yazan ^şahıs' \
+            messagetxt +="\r\n\n^[[sahibim](https://www.reddit.com/user/peroksizom),[source-code](https://github.com/scrubjay55/Reddit-Tweet-Linker-Bot)]" \
                          '\r\n\n^yanlıssa ^kaldırmak ^için ^downvotelayın ^:)'
         else:
             messagetxt = "Hi {}!\r\nI'm a bot and I find links to the twitter screenshots.\r\n".format(
@@ -93,8 +94,8 @@ while True:
                         username, twitlink)
                 if wordcount <= 4:
                     messagetxt += "\r\ni shortened the tweet to find it. the result might be wrong JUST AS TWEET SS MIGHT BE FAKE."
-            messagetxt += '\r\n\n^my owner: u/peroksizom' \
-                          '\r\n\n^downvote ^to ^remove'
+            messagetxt += "\r\n\n^[[owner](https://www.reddit.com/user/peroksizom),[source-code](https://github.com/scrubjay55/Reddit-Tweet-Linker-Bot)]" \
+                          "\r\n\n^downvote ^to ^remove"
         twitterlinker.send_reply(messagetxt, id_)
         alreadyanswered.append(id_)
         print('DONE')
@@ -118,8 +119,8 @@ while True:
                 print("TWEET POSTU BULUNDU")
                 messagetxt = "ben bir botum ve tweet screenshotlarının linklerini buluyorum.\r\n" \
                              "bu tweeti @{} atmış ve yamulmuyorsam linki de bu: {}" \
-                             "\r\n\nu/peroksizom^beni ^yazan ^şahıs" \
-                             "\r\n\n^yanlıssa ^kaldırmak ^için ^downvotelayın ^:)".format(username, twitlink)
+                             "\r\n\n^[[sahibim](https://www.reddit.com/user/peroksizom),[source-code](https://github.com/scrubjay55/Reddit-Tweet-Linker-Bot)]" \
+                            '\r\n\n^yanlıssa ^kaldırmak ^için ^downvotelayın ^:)'.format(username, twitlink)
                 twitterlinker.send_reply(messagetxt, pThing)
             else:
                 print("tweet postu degil")
