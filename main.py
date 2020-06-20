@@ -18,13 +18,15 @@ def is_api_up():
         return True
 
 def is_exist_twitter(username):
-    pagec = requests.get("https://mobile.twitter.com/{}".format(username), cookies={'m5': 'off'}, headers={"Accept-Language": "en-US,en;q=0.5"})
-    soup = BeautifulSoup(pagec.content, "lxml")
-    search = soup.find('div', class_='title')
-    if search.text == "Sorry, that page doesn't exist" or search.text == "This account has been suspended.":
+    pagec = requests.get("https://mobile.twitter.com/{}".format(username), allow_redirects=False, cookies={'m5': 'off'}, headers={"Accept-Language": "en-US,en;q=0.5"})
+    if pagec.status_code == 200:  # OK
+        return True
+    elif pagec.status_code == 307:  # Suspended account
+        return False
+    elif pagec.status_code == 404:  # Not exist
         return False
     else:
-        return True
+        return False
 
 def ocr_and_twit(picurl, lang, ocr_api_key, need_at=True):
     payload = {'apikey': ocr_api_key, 'url': picurl, 'language': lang}
