@@ -40,7 +40,7 @@ while True:
                 id_)
             continue
 
-        if subreddit == "turkey" or subreddit == "turkeyjerky":
+        if subreddit == "turkey" or subreddit == "turkeyjerky" or subreddit == "testyapiyorum":
             lang_arg = 'tur'
         else:
             lang_arg = 'eng'
@@ -97,33 +97,34 @@ while True:
         continue
 
     #SUBREDDIT FEED CHECK
-    last_submission = twitterlinker.fetch_subreddit_posts("turkey", 1)
-    last_post = last_submission[0]["data"]
-    pThing = last_post["name"]
-    if not last_post["is_self"] and not last_post["is_video"] and not pThing in checked_post:
-        if not twitterlinker.check_if_already_post(pThing):
-            if is_api_up():
-                username, twitlink, atliatsiz, wordcount, reasons = ocr_and_twit(last_post["url"], "tur", ocr_api_key, need_at=False)
-                if username == -1:
-                    time.sleep(20)
-                    username, twitlink, atliatsiz, wordcount, reasons = ocr_and_twit(last_post["url"], "tur", ocr_api_key, need_at=False)
+    last_submissions = twitterlinker.fetch_subreddit_posts("turkey", 2)
+    for last_submission in last_submissions:
+        curr_post = last_submission["data"]
+        pThing = curr_post["name"]
+        if not curr_post["is_self"] and not curr_post["is_video"] and not pThing in checked_post:
+            if not twitterlinker.check_if_already_post(pThing):
+                if is_api_up():
+                    username, twitlink, atliatsiz, wordcount, reasons = ocr_and_twit(curr_post["url"], "tur", ocr_api_key, need_at=False)
+                    if username == -1:
+                        time.sleep(20)
+                        username, twitlink, atliatsiz, wordcount, reasons = ocr_and_twit(curr_post["url"], "tur", ocr_api_key, need_at=False)
+                else:
+                    time.sleep(30)
+                    continue
+                if not username == -1 and username and not atliatsiz:
+                    print("TWEET POSTU BULUNDU")
+                    messagetxt = "ben bir botum ve tweet screenshotlarının linklerini buluyorum.\r\n" \
+                                 "bu tweeti @{} atmış ve yamulmuyorsam linki de bu: {}" \
+                                 "\r\n\n^[[sahibim](https://www.reddit.com/user/peroksizom),[source-code](https://github.com/scrubjay55/Reddit-Tweet-Linker-Bot)]" \
+                                '\r\n\n^yanlıssa ^kaldırmak ^için ^downvotelayın ^:)'.format(username, twitlink)
+                    twitterlinker.send_reply(messagetxt, pThing)
+                else:
+                    print("tweet postu degil")
             else:
-                time.sleep(30)
-                continue
-            if not username == -1 and username and not atliatsiz:
-                print("TWEET POSTU BULUNDU")
-                messagetxt = "ben bir botum ve tweet screenshotlarının linklerini buluyorum.\r\n" \
-                             "bu tweeti @{} atmış ve yamulmuyorsam linki de bu: {}" \
-                             "\r\n\n^[[sahibim](https://www.reddit.com/user/peroksizom),[source-code](https://github.com/scrubjay55/Reddit-Tweet-Linker-Bot)]" \
-                            '\r\n\n^yanlıssa ^kaldırmak ^için ^downvotelayın ^:)'.format(username, twitlink)
-                twitterlinker.send_reply(messagetxt, pThing)
-            else:
-                print("tweet postu degil")
+                print("feed check: cevaplanmis")
+            checked_post.append(pThing)
         else:
-            print("feed check: cevaplanmis")
-        checked_post.append(pThing)
-    else:
-        print("pic degil ya da cevaplandi")
+            print("pic degil ya da cevaplandi")
 
     # SCORE CHECK
     twitterlinker.check_last_comment_scores()

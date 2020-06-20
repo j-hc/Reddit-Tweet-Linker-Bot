@@ -40,14 +40,25 @@ class rBot():
 
     def del_comment(self, thingid):
         self.req_obj.post("https://oauth.reddit.com/api/del", data={"id": thingid})
-        logging.info("message deleted")
+        logging.info("comment removed")
 
     def send_reply(self, text, id_):
         data = {'api_type': 'json', 'return_rtjson': '1', 'text': text, "thing_id": id_}
-        self.req_obj.post("https://oauth.reddit.com/api/comment", data=data)
-        logging.info("message sent")
-        self.already_answered.append(id_)
-        logging.info("added into answered list")
+        rply_req = self.req_obj.post("https://oauth.reddit.com/api/comment", data=data)
+        reply_s = rply_req.json()
+        try:
+            to_log = str(reply_s["json"]["errors"])
+            logging.warning(to_log)
+            sec_or_min = "min" if "minute" in to_log else "sec"
+            num_in_err = int(''.join(list(filter(str.isdigit, to_log))))
+            sleep_for = num_in_err if sec_or_min=="sec" else (num_in_err + 1) * 60
+            logging.info("sleeping for {}".format(sleep_for))
+            time.sleep(sleep_for)
+            self.send_reply(text, id_)
+        except:
+            logging.info("message sent")
+            self.already_answered.append(id_)
+            logging.info("added into answered list")
 
     def check_last_comment_scores(self, limit=5):
         profile = self.req_obj.get("https://oauth.reddit.com/user/{}.json?limit={}".format(self.bot_username, limit))
@@ -55,11 +66,11 @@ class rBot():
         for cm_body in cm_bodies:
             if cm_body["data"]["score"] <= -1:
                 self.del_comment(cm_body["data"]["name"])
-                logging.info("comment removed")
 
-    def check_if_already(self, linkid, commentid):
-        comment_info_req = self.req_obj.get("https://oauth.reddit.com/comments/{}/_/{}.json?depth=2".format(linkid.split('_')[1],
-                                                                            commentid.split('_')[1]))
+    def check_if_already(self, context, depth=2):
+        #comment_info_req = self.req_obj.get("https://oauth.reddit.com/comments/{0}/_/{1}.json?depth={2}".format(linkid.split('_')[1],
+        #                                                                    commentid.split('_')[1], str(depth)))
+        comment_info_req = self.req_obj.get("https://oauth.reddit.com{0}?depth={1}".format(context, str(depth)))
         try:
             authors = json.loads(comment_info_req.content.decode())[1]['data']['children'][0]['data']['replies']['data']['children']
         except:
@@ -103,38 +114,47 @@ class rBot():
         time_unix = time.mktime(t.timetuple())
 
         custom = ""
-        for m in range(0, len(childrentime)):
-            js = childrentime[m]['data']
+        for child in childrentime:
+            js = child['data']
             body_lower = str(js['body']).lower()
-            if int(js['created_utc']) < int(time_unix) - 4000:
+            commentid_full = js['name']
+            sub = str(js['subreddit']).lower()
+            summoner = js['author']
+            linkid = js['parent_id']
+            type = js['type']
+            context = str(js['context']).split("?")[0]
+            created_utc = int(js['created_utc'])
+            if created_utc < int(time_unix) - 4000:
                 logging.info('nothing new')
                 return False
-            elif js['type'] == 'username_mention':
-                commentid_full = js['name']
-                sub = str(js['subreddit']).lower()
-                summoner = js['author']
-                linkid = js['parent_id']
+            elif type == 'username_mention':
+                logging.info("username mention")
                 if commentid_full in self.already_answered:
                     logging.info('already answered')
                     continue
-                elif self.check_if_already(linkid, commentid_full):
+                elif self.check_if_already(context, commentid_full):
                     logging.info('already answered to: ' + summoner)
                     self.already_answered.append(commentid_full)
                     continue
-                mention_content = js['body']
-                if 'custom_url' in mention_content:
-                    custom = mention_content[mention_content.find("(") + 1:mention_content.find(")")]
+                if 'custom_url' in body_lower:
+                    custom = body_lower[body_lower.find("(") + 1:body_lower.find(")")]
                 toanswer = (commentid_full, linkid, sub, custom, summoner)
                 return toanswer
 
             # BAD BOT
-            elif js['type'] == "comment_reply" and body_lower == "bad bot" or body_lower == "kotu bot" or body_lower == "kötü bot":
-                sub = str(js['subreddit']).lower()
-                if sub == "turkey" or sub == "turkeyjerky":
-                    messagetxt = "mesajımı downvotelayarak kaldırabilirsiniz :("
+            elif type == "comment_reply" and commentid_full not in self.already_answered and (body_lower == "bad bot" or body_lower == "kotu bot" or body_lower == "kötü bot"):
+                logging.info("comment_reply")
+                if not self.check_if_already(context, commentid_full):
+                    if sub == "turkey" or sub == "turkeyjerky":
+                        messagetxt = "mesajımı downvotelayarak kaldırabilirsiniz :("
+                    else:
+                        messagetxt = "you can downvote me to remove :("
+
+                    logging.info("bad bot comment :(")
+                    self.send_reply(text=messagetxt, id_=commentid_full)
                 else:
-                    messagetxt = "you can downvote me to remove :("
-                self.send_reply(text=messagetxt, id_=js['name'])
+                    logging.info('already answered to: ' + summoner)
+                    self.already_answered.append(commentid_full)
 
 
     def fetch_subreddit_posts(self, sub, count):
