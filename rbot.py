@@ -34,7 +34,7 @@ class rBot():
         response_token = requests.post("https://www.reddit.com/api/v1/access_token", auth=client_auth, data=post_data,
                                        headers={"User-Agent": self.useragent})
         access_token = json.loads(response_token.content.decode())['access_token']
-        logging.info('yeni token alındı: ' + access_token)
+        logging.info('got new token: ' + access_token)
         self.req_obj.headers.update({"Authorization": "bearer {0}".format(access_token)})
 
     def del_comment(self, thingid):
@@ -52,7 +52,7 @@ class rBot():
         for cm_body in cm_bodies:
             if cm_body["data"]["score"] <= -1:
                 self.del_comment(cm_body["data"]["name"])
-                logging.info("yorum silindi")
+                logging.info("comment removed")
 
     def check_if_already(self, linkid, commentid):
         comment_info_req = self.req_obj.get("https://oauth.reddit.com/comments/{}/_/{}.json?depth=2".format(linkid.split('_')[1],
@@ -99,7 +99,7 @@ class rBot():
             js = childrentime[m]['data']
             body_lower = str(js['body']).lower()
             if int(js['created_utc']) < int(time_unix) - 4000:
-                logging.info('yeni bise yok')
+                logging.info('nothing new')
                 return False
             elif js['type'] == 'username_mention':
                 commentid_full = js['name']
@@ -107,10 +107,10 @@ class rBot():
                 summoner = js['author']
                 linkid = js['parent_id']
                 if commentid_full in alreadyanswered:
-                    logging.info('zaten cevaplanmış')
+                    logging.info('already answered')
                     continue
                 elif self.check_if_already(linkid, commentid_full):
-                    logging.info('zaten cevaplanmış ' + summoner)
+                    logging.info('already answered to: ' + summoner)
                     alreadyanswered.append(commentid_full)
                     continue
                 mention_content = js['body']
