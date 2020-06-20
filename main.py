@@ -102,7 +102,7 @@ while True:
         continue
 
     #SUBREDDIT FEED CHECK
-    last_submission = twitterlinker.fetch_subreddit_posts("testyapiyorum", 1)
+    last_submission = twitterlinker.fetch_subreddit_posts("turkey", 1)
     last_post = last_submission[0]["data"]
     pThing = last_post["name"]
     if not last_post["is_self"] and not last_post["is_video"] and not pThing in checked_post:
