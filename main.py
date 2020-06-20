@@ -7,11 +7,10 @@ from info import useragent, client_id, client_code, bot_username, bot_pass, ocr_
 
 twitterlinker = rbot.rBot(useragent, client_id, client_code, bot_username, bot_pass)
 twitterlinker.get_token()
-alreadyanswered = []
 checked_post = []
 while True:
     #INBOX CHECK
-    id_urlname = twitterlinker.check_inbox(alreadyanswered)
+    id_urlname = twitterlinker.check_inbox()
     if id_urlname == "tokenal":
         twitterlinker.get_token()
         continue
@@ -24,7 +23,6 @@ while True:
             twitterlinker.send_reply(
                 'Im a bot and I find links to the twitter screenshots. I cant see the pic. you need to mention me from a main reply to the post.',
                 id_)
-            alreadyanswered.append(id_)
             continue
 
         response = requests.get('https://www.reddit.com/{}/.json'.format(linkid.split('_')[1]),
@@ -40,7 +38,6 @@ while True:
             twitterlinker.send_reply(
                 'Im a bot and I find links to the twitter screenshots. \r\n i dunno why you called me this post has no image',
                 id_)
-            alreadyanswered.append(id_)
             continue
 
         if subreddit == "turkey" or subreddit == "turkeyjerky":
@@ -59,7 +56,6 @@ while True:
                          "OCR API'm çökmüş :(. başka zamana artık..".format(str(user).lower())
             print('api down')
             twitterlinker.send_reply(messagetxt, id_)
-            alreadyanswered.append(id_)
             continue
         print('OCR DONE')
         reason_tur, reason_eng = reasons
@@ -97,7 +93,6 @@ while True:
             messagetxt += "\r\n\n^[[owner](https://www.reddit.com/user/peroksizom),[source-code](https://github.com/scrubjay55/Reddit-Tweet-Linker-Bot)]" \
                           "\r\n\n^downvote ^to ^remove"
         twitterlinker.send_reply(messagetxt, id_)
-        alreadyanswered.append(id_)
         print('DONE')
         continue
 
@@ -133,8 +128,6 @@ while True:
     # SCORE CHECK
     twitterlinker.check_last_comment_scores()
 
-    if len(alreadyanswered) > 35:
-        alreadyanswered = []
     if len(checked_post) > 35:
         checked_post = []
     print('\r\nbekleniyor')

@@ -20,6 +20,7 @@ class rBot():
         self.client_code = client_code
         self.bot_username = bot_username
         self.bot_pass = bot_pass
+        self.already_answered = []
         self.req_obj = self.prep_session()
 
     def prep_session(self):
@@ -45,6 +46,8 @@ class rBot():
         data = {'api_type': 'json', 'return_rtjson': '1', 'text': text, "thing_id": id_}
         self.req_obj.post("https://oauth.reddit.com/api/comment", data=data)
         logging.info("message sent")
+        self.already_answered.append(id_)
+        logging.info("added into answered list")
 
     def check_last_comment_scores(self, limit=5):
         profile = self.req_obj.get("https://oauth.reddit.com/user/{}.json?limit={}".format(self.bot_username, limit))
@@ -74,7 +77,12 @@ class rBot():
                 return True
         return False
 
-    def check_inbox(self, alreadyanswered):
+    def clear_answered(self):
+        self.already_answered = []
+
+    def check_inbox(self):
+        if len(self.already_answered) > 35:
+            self.clear_answered()  # lets not overflow :)
         childrentime = None
         while childrentime is None:
             response_inbox = self.req_obj.get("https://oauth.reddit.com/message/inbox.json")
@@ -106,12 +114,12 @@ class rBot():
                 sub = str(js['subreddit']).lower()
                 summoner = js['author']
                 linkid = js['parent_id']
-                if commentid_full in alreadyanswered:
+                if commentid_full in self.already_answered:
                     logging.info('already answered')
                     continue
                 elif self.check_if_already(linkid, commentid_full):
                     logging.info('already answered to: ' + summoner)
-                    alreadyanswered.append(commentid_full)
+                    self.already_answered.append(commentid_full)
                     continue
                 mention_content = js['body']
                 if 'custom_url' in mention_content:
