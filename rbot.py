@@ -5,7 +5,7 @@ import time
 from datetime import datetime
 import logging
 logging.basicConfig(level=logging.INFO, datefmt='%Y-%m-%d:%H:%M',
-                    format='%(asctime)s, %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s',)
+                    format='%(asctime)s, %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s')
 
 from http import cookiejar
 class BlockAll(cookiejar.CookiePolicy):
