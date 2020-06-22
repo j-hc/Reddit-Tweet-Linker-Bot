@@ -27,7 +27,7 @@ while True:
 
         response = requests.get('https://www.reddit.com/{}/.json'.format(linkid.split('_')[1]),
                                 headers={"User-Agent": useragent})
-        jsurl = json.loads(response.content.decode())
+        jsurl = response.json()
         if not customurl == "":
             pic = customurl
         else:

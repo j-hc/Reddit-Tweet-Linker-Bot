@@ -1,17 +1,19 @@
 import requests
 import requests.auth
-import json
 import time
 from datetime import datetime
 import logging
-logging.basicConfig(level=logging.INFO, datefmt='%Y-%m-%d:%H:%M',
+from http import cookiejar
+
+logging.basicConfig(level=logging.INFO, datefmt='%Y-%m-%d-%H:%M',
                     format='%(asctime)s, %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s')
 
-from http import cookiejar
+
 class BlockAll(cookiejar.CookiePolicy):
     return_ok = set_ok = domain_return_ok = path_return_ok = lambda self, *args, **kwargs: False
     netscape = True
     rfc2965 = hide_cookie2 = False
+
 
 class rBot():
     def __init__(self, useragent, client_id, client_code, bot_username, bot_pass):
@@ -34,7 +36,7 @@ class rBot():
         post_data = {"grant_type": "password", "username": self.bot_username, "password": self.bot_pass}
         response_token = requests.post("https://www.reddit.com/api/v1/access_token", auth=client_auth, data=post_data,
                                        headers={"User-Agent": self.useragent})
-        access_token = json.loads(response_token.content.decode())['access_token']
+        access_token = response_token.json()['access_token']
         logging.info('got new token: ' + access_token)
         self.req_obj.headers.update({"Authorization": "bearer {0}".format(access_token)})
 
@@ -76,7 +78,7 @@ class rBot():
         #                                                                    commentid.split('_')[1], str(depth)))
         comment_info_req = self.req_obj.get("https://oauth.reddit.com{0}?depth={1}".format(context, str(depth)))
         try:
-            authors = json.loads(comment_info_req.content.decode())[1]['data']['children'][0]['data']['replies']['data']['children']
+            authors = comment_info_req.json()[1]['data']['children'][0]['data']['replies']['data']['children']
         except:
             return False
 
@@ -109,9 +111,8 @@ class rBot():
                 return "tokenal"
             except:
                 pass
-
             try:
-                childrentime = json.loads(response_inbox.content.decode())['data']['children']
+                childrentime = response_inbox.json()['data']['children']
             except:
                 logging.warning('server mesgul 30sn bekle')
                 time.sleep(30)
