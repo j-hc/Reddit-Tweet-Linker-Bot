@@ -4,7 +4,7 @@ import json
 import time
 from datetime import datetime
 import logging
-logging.basicConfig(level=logging.INFO, datefmt='%Y-%m-%d.%H:%M',
+logging.basicConfig(level=logging.INFO, datefmt='%Y-%m-%d:%H:%M',
                     format='%(asctime)s, %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s')
 
 from http import cookiejar
@@ -12,14 +12,6 @@ class BlockAll(cookiejar.CookiePolicy):
     return_ok = set_ok = domain_return_ok = path_return_ok = lambda self, *args, **kwargs: False
     netscape = True
     rfc2965 = hide_cookie2 = False
-
-class CheckedDict(dict):
-    def __getitem__(self, item):
-        try:
-            return dict.__getitem__(self, item)
-        except KeyError:
-            logging.error("couldnt get '{0}' from dict(): {1}".format(item, dict.__str__(self)))
-            raise
 
 class rBot():
     def __init__(self, useragent, client_id, client_code, bot_username, bot_pass):
@@ -42,7 +34,7 @@ class rBot():
         post_data = {"grant_type": "password", "username": self.bot_username, "password": self.bot_pass}
         response_token = requests.post("https://www.reddit.com/api/v1/access_token", auth=client_auth, data=post_data,
                                        headers={"User-Agent": self.useragent})
-        access_token = CheckedDict(response_token.json())['access_token']
+        access_token = json.loads(response_token.content.decode())['access_token']
         logging.info('got new token: ' + access_token)
         self.req_obj.headers.update({"Authorization": "bearer {0}".format(access_token)})
 
@@ -53,7 +45,7 @@ class rBot():
     def send_reply(self, text, id_):
         data = {'api_type': 'json', 'return_rtjson': '1', 'text': text, "thing_id": id_}
         rply_req = self.req_obj.post("https://oauth.reddit.com/api/comment", data=data)
-        reply_s = CheckedDict(rply_req.json())
+        reply_s = rply_req.json()
         try:
             to_log = str(reply_s["json"]["errors"])
             logging.warning(to_log)
@@ -70,7 +62,11 @@ class rBot():
 
     def check_last_comment_scores(self, limit=5):
         profile = self.req_obj.get("https://oauth.reddit.com/user/{}.json?limit={}".format(self.bot_username, limit))
-        cm_bodies = CheckedDict(profile.json())["data"]["children"]
+        try:
+            cm_bodies = profile.json()["data"]["children"]
+        except Exception as e:
+            print(profile.json())
+            raise e
         for cm_body in cm_bodies:
             if cm_body["data"]["score"] <= -1:
                 self.del_comment(cm_body["data"]["name"])
@@ -93,7 +89,7 @@ class rBot():
 
     def check_if_already_post(self, linkid):
         comment_info_req = self.req_obj.get("https://oauth.reddit.com/comments/{}/.json".format(linkid.split('_')[1]))
-        for reply in CheckedDict(comment_info_req.json())[1]["data"]["children"]:
+        for reply in comment_info_req.json()[1]["data"]["children"]:
             if reply["data"]["author"] == self.bot_username:
                 return True
         return False
@@ -167,5 +163,10 @@ class rBot():
 
     def fetch_subreddit_posts(self, sub, count):
         posts = self.req_obj.get("https://oauth.reddit.com/r/{}/new.json?limit={}".format(sub, str(count)))
-        rt = CheckedDict(posts.json())["data"]["children"]
+        
+        try:
+            rt = posts.json()["data"]["children"]##################################
+        except Exception as e:
+            print(posts.json())
+            raise e
         return rt
