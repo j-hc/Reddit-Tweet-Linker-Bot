@@ -18,6 +18,7 @@ while True:
             lang_arg = 'tur'
         else:
             lang_arg = 'eng'
+
         if lang_arg == "tur":
             l_res = tr
         else:

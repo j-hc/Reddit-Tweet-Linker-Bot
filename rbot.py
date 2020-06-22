@@ -5,7 +5,7 @@ from datetime import datetime
 import logging
 from http import cookiejar
 
-logging.basicConfig(level=logging.INFO, datefmt='%Y-%m-%d-%H:%M',
+logging.basicConfig(level=logging.INFO, datefmt='%Y-%m-%d %H:%M',
                     format='%(asctime)s, %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s')
 
 
