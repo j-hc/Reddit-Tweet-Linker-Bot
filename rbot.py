@@ -121,7 +121,7 @@ class rBot():
             body_lower = str(js['body']).lower()
             commentid_full = js['name']
             sub = str(js['subreddit']).lower()
-            summoner = js['author']
+            summoner = str(js['author']).lower()
             linkid = js['parent_id']
             type = js['type']
             context = str(js['context']).split("?")[0]

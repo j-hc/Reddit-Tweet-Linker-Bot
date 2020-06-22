@@ -2,6 +2,7 @@ import time
 from api_and_twitterparsing import *
 import rbot
 from info import useragent, client_id, client_code, bot_username, bot_pass, ocr_api_key
+from strings import tr, en
 
 
 twitterlinker = rbot.rBot(useragent, client_id, client_code, bot_username, bot_pass)
@@ -14,13 +15,20 @@ while True:
         continue
     if id_urlname:
         id_, linkid, subreddit, customurl, user = id_urlname
+        if subreddit == "turkey" or subreddit == "turkeyjerky" or subreddit == "testyapiyorum":
+            lang_arg = 'tur'
+        else:
+            lang_arg = 'eng'
+        if lang_arg == "tur":
+            l_res = tr
+        else:
+            l_res = en
         print('SUMMONLANDIM #####')
+        print(lang_arg)
 
         if not linkid.split('_')[0] == 't3':
             print('not main reply')
-            twitterlinker.send_reply(
-                'Im a bot and I find links to the twitter screenshots. I cant see the pic. you need to mention me from a main reply to the post.',
-                id_)
+            twitterlinker.send_reply(l_res["introduction"] + " " + l_res["not_main_reply_err"], id_)
             continue
 
         response = requests.get('https://www.reddit.com/{}/.json'.format(linkid.split('_')[1]),
@@ -33,16 +41,8 @@ while True:
 
         if not jsurl[0]['data']['children'][0]['data'].get("post_hint"):
             print('text post')
-            twitterlinker.send_reply(
-                'Im a bot and I find links to the twitter screenshots. \r\n i dunno why you called me this post has no image',
-                id_)
+            twitterlinker.send_reply(l_res["introduction"] + "\r\n" + l_res["no_image_err"], id_)
             continue
-
-        if subreddit == "turkey" or subreddit == "turkeyjerky" or subreddit == "testyapiyorum":
-            lang_arg = 'tur'
-        else:
-            lang_arg = 'eng'
-        print(lang_arg)
 
         if is_api_up(wait=False):
             username, twitlink, atliatsiz, wordcount, reasons = ocr_and_twit(pic, lang_arg, ocr_api_key)
@@ -50,46 +50,25 @@ while True:
                 time.sleep(20)
                 username, twitlink, atliatsiz, wordcount, reasons = ocr_and_twit(pic, lang_arg, ocr_api_key)
         else:
-            messagetxt = "merhaba {}!\r\nben bir botum ve tweet screenshotlarının linklerini buluyorum.\r\n" \
-                         "OCR API'm çökmüş :(. başka zamana artık..".format(str(user).lower())
+            messagetxt = l_res["hello"].format(user) + "\r\n" + l_res["introduction"] + "\r\n" + l_res["api_down_err"]
             print('api down')
             twitterlinker.send_reply(messagetxt, id_)
             continue
         print('OCR DONE')
         reason_tur, reason_eng = reasons
-        if lang_arg == 'tur':
-            messagetxt = "merhaba {}!\r\nben bir botum ve tweet screenshotlarının linklerini buluyorum.\r\n".format(
-                str(user).lower())
-            if twitlink == "":
-                messagetxt += "bu tweet için bişe bulamadım çünkü {}, sorry.".format(reason_tur)
-            else:
-                if atliatsiz:
-                    messagetxt += "bu tweeti kimin attığı ss den belli olmuyor. ama yine de denedim ve yamulmuyorsam linki bu: {}".format(
-                        twitlink)
-                elif not atliatsiz:
-                    messagetxt += "bu tweeti @{} atmış ve yamulmuyorsam linki de bu: {}".format(
-                        username, twitlink)
-                if wordcount <= 4:
-                    messagetxt += "\r\ntweeti bulmak icin kısaltarak aramak zorunda kaldım. sonuç doğru olmayabilir."
-            messagetxt +="\r\n\n^[[sahibim](https://www.reddit.com/user/peroksizom),[source-code](https://github.com/scrubjay55/Reddit-Tweet-Linker-Bot)]" \
-                         '\r\n\n^yanlıssa ^kaldırmak ^için ^downvotelayın ^:)'
+
+        messagetxt = l_res["hello"].format(user) + "\r\n" + l_res["introduction"] + "\r\n"
+        if twitlink == "":
+            messagetxt += l_res["because"].format(reason_tur)
         else:
-            messagetxt = "Hi {}!\r\nI'm a bot and I find links to the twitter screenshots.\r\n".format(
-                str(user).lower())
-            if twitlink == "":
-                messagetxt += "I wasn't able to find anything for this tweet because {}, sorry.".format(
-                    reason_eng)
-            else:
-                if atliatsiz:
-                    messagetxt += "I am not able to see who tweeted this. Nevertheless i tried: {}".format(
-                        twitlink)
-                elif not atliatsiz:
-                    messagetxt += "this was tweeted by @{} and if I'm not wrong the link is: {}".format(
-                        username, twitlink)
-                if wordcount <= 4:
-                    messagetxt += "\r\ni shortened the tweet to find it. the result might be wrong JUST AS TWEET SS MIGHT BE FAKE."
-            messagetxt += "\r\n\n^[[owner](https://www.reddit.com/user/peroksizom),[source-code](https://github.com/scrubjay55/Reddit-Tweet-Linker-Bot)]" \
-                          "\r\n\n^downvote ^to ^remove"
+            if atliatsiz:
+                messagetxt += l_res["couldnt_find_at"].format(twitlink)
+            elif not atliatsiz:
+                messagetxt += l_res["success"].format(username, twitlink)
+            if wordcount <= 4:
+                messagetxt += "\r\n" + l_res["shortened_warn"]
+        messagetxt += l_res["outro"]
+
         twitterlinker.send_reply(messagetxt, id_)
         print('DONE')
         continue
@@ -97,6 +76,7 @@ while True:
     #SUBREDDIT FEED CHECK
     last_submissions = twitterlinker.fetch_subreddit_posts("turkey", 2)
     for last_submission in last_submissions:
+        l_res = tr
         curr_post = last_submission["data"]
         pThing = curr_post["name"]
         if curr_post.get("post_hint") and pThing not in twitterlinker.checked_post:
@@ -108,10 +88,7 @@ while True:
                         username, twitlink, atliatsiz, wordcount, reasons = ocr_and_twit(curr_post["url"], "tur", ocr_api_key, need_at=False)
                 if not username == -1 and username and not atliatsiz:
                     print("TWEET POSTU BULUNDU")
-                    messagetxt = "ben bir botum ve tweet screenshotlarının linklerini buluyorum.\r\n" \
-                                 "bu tweeti @{} atmış ve yamulmuyorsam linki de bu: {}" \
-                                 "\r\n\n^[[sahibim](https://www.reddit.com/user/peroksizom),[source-code](https://github.com/scrubjay55/Reddit-Tweet-Linker-Bot)]" \
-                                '\r\n\n^yanlıssa ^kaldırmak ^için ^downvotelayın ^:)'.format(username, twitlink)
+                    messagetxt = l_res["introduction"] + "\r\n" + l_res["success"].format(username, twitlink) + l_res["outro"]
                     twitterlinker.send_reply(messagetxt, pThing)
                 else:
                     print("tweet postu degil")
