@@ -4,6 +4,8 @@ import json
 import urllib.parse
 import time
 
+REASON_TOO_BIG = -2
+REASON_DEFAULT = -3
 
 def is_api_up(wait=False):
     while True:
@@ -37,8 +39,7 @@ def ocr_and_twit(picurl, lang, ocr_api_key, need_at=True):
     try:
         loaded = str(json.loads(postre.content.decode())["ParsedResults"][0]['ParsedText'])
     except KeyError:
-        reasons = ("görüntü boyutu çok büyük(>1MB)", 'image is bigger than 1MB')
-        ret = ("", "", "", "", reasons)
+        ret = ("", "", "", "", REASON_TOO_BIG)
         return ret
     except:
         ret = (-1, "", "", "", "")
@@ -78,8 +79,7 @@ def ocr_and_twit(picurl, lang, ocr_api_key, need_at=True):
         print("@username gozukmuyor")
         possible_at = [""]
         if not need_at:
-            reasons = ('*shrugs*', '*shrugs*')
-            ret = ("", "", "", "", reasons)
+            ret = ("", "", "", "", REASON_DEFAULT)
             return ret
     else:
         find_at = at.split('@')[1].split(' ')[0].strip()
@@ -109,8 +109,7 @@ def ocr_and_twit(picurl, lang, ocr_api_key, need_at=True):
                 if is_exist_twitter(find_at):
                     possible_at.append(find_at)
     if not search_text:
-        reasons = ('*shrugs*', '*shrugs*')
-        ret = ("", "", "", "", reasons)
+        ret = ("", "", "", "", REASON_DEFAULT)
         return ret
 
     print("search_text: " + search_text)
@@ -200,6 +199,5 @@ def ocr_and_twit(picurl, lang, ocr_api_key, need_at=True):
             except:
                 pass
 
-    reasons = ('*shrugs*', '*shrugs*')
-    ret = ("", "", "", "", reasons)
+    ret = ("", "", "", "", REASON_DEFAULT)
     return ret

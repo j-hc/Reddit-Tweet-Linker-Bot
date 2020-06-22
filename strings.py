@@ -1,4 +1,3 @@
-
 en = {"introduction": "Im a bot and I find links to the twitter screenshots.",
       "not_main_reply_err": "I cant see the pic. you need to mention me from a main reply to the post.",
       "no_image_err": "i dunno why you called me this post has no image.",
@@ -9,8 +8,12 @@ en = {"introduction": "Im a bot and I find links to the twitter screenshots.",
       "success": "this was tweeted by @{0} and if I'm not wrong the link is: {1}",
       "shortened_warn": "i shortened the tweet to find it. the result might be wrong.",
       "outro": "\r\n\n^[[my-owner](https://www.reddit.com/user/peroksizom),[source-code](https://github.com/scrubjay55/Reddit-Tweet-Linker-Bot)]"
-               "\r\n\n^downvote ^to ^remove"
+               "\r\n\n^downvote ^to ^remove",
+
+      "reason_toobig": "image is bigger than 1MB",
+      "reason_default": "*shrugs*"
       }
+
 tr = {"introduction": "ben bir botum ve tweet screenshotlarının linklerini buluyorum.",
       "not_main_reply_err": "görsele ulaşamıyorum. beni main posta cevap olarak mentionlamalısın.",
       "no_image_err": "beni neden çağırdınız bilmiyorum. bu postta görsel yok.",
@@ -22,4 +25,6 @@ tr = {"introduction": "ben bir botum ve tweet screenshotlarının linklerini bul
       "shortened_warn": "tweeti bulmak icin kısaltarak aramak zorunda kaldım. sonuç doğru olmayabilir.",
       "outro": "\r\n\n^[[sahibim](https://www.reddit.com/user/peroksizom),[source-code](https://github.com/scrubjay55/Reddit-Tweet-Linker-Bot)]" \
                 "\r\n\n^yanlıssa ^kaldırmak ^için ^downvotelayın ^:)",
+      "reason_toobig": "görüntü boyutu çok büyük(>1MB)",
+      "reason_default": "*shrugs*"
       }

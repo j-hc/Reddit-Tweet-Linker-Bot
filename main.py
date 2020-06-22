@@ -1,4 +1,3 @@
-import time
 from api_and_twitterparsing import *
 import rbot
 from info import useragent, client_id, client_code, bot_username, bot_pass, ocr_api_key
@@ -55,11 +54,17 @@ while True:
             twitterlinker.send_reply(messagetxt, id_)
             continue
         print('OCR DONE')
-        reason_tur, reason_eng = reasons
+
+        if reasons == REASON_DEFAULT:
+            reason = l_res["reason_default"]
+        elif reasons == REASON_TOO_BIG:
+            reason = l_res["reason_toobig"]
+        else:
+            reason = l_res["reason_default"]
 
         messagetxt = l_res["hello"].format(user) + "\r\n" + l_res["introduction"] + "\r\n"
         if twitlink == "":
-            messagetxt += l_res["because"].format(reason_tur)
+            messagetxt += l_res["because"].format(reason)
         else:
             if atliatsiz:
                 messagetxt += l_res["couldnt_find_at"].format(twitlink)
@@ -74,7 +79,7 @@ while True:
         continue
 
     #SUBREDDIT FEED CHECK
-    last_submissions = twitterlinker.fetch_subreddit_posts("turkey", 2)
+    last_submissions = twitterlinker.fetch_subreddit_posts("testyapiyorum", 2)
     for last_submission in last_submissions:
         l_res = tr
         curr_post = last_submission["data"]
