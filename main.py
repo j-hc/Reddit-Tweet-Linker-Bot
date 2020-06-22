@@ -2,7 +2,7 @@ import time
 from api_and_twitterparsing import *
 import rbot
 from info import useragent, client_id, client_code, bot_username, bot_pass, ocr_api_key
-
+from rbot import CheckedDict
 
 
 twitterlinker = rbot.rBot(useragent, client_id, client_code, bot_username, bot_pass)
@@ -27,7 +27,7 @@ while True:
 
         response = requests.get('https://www.reddit.com/{}/.json'.format(linkid.split('_')[1]),
                                 headers={"User-Agent": useragent})
-        jsurl = json.loads(response.content.decode())
+        jsurl = CheckedDict(response.json())
         if not customurl == "":
             pic = customurl
         else:
