@@ -32,6 +32,7 @@ class rBot():
         self.bot_username = bot_username
         self.bot_pass = bot_pass
         self.already_answered = []
+        self.checked_post = []
         self.req_obj = self.prep_session()
 
     def prep_session(self):
@@ -93,27 +94,26 @@ class rBot():
         return False
 
     def check_if_already_post(self, linkid):
+        if len(self.checked_post) > 35:
+            self.clear_(self.checked_post)
         comment_info_req = self.req_obj.get("https://oauth.reddit.com/comments/{}/.json".format(linkid.split('_')[1]))
         for reply in HandledDict(comment_info_req.json()[1])["data"]["children"]:
             if reply["data"]["author"] == self.bot_username:
+                self.checked_post.append(linkid)
                 return True
         return False
 
-    def clear_answered(self):
-        self.already_answered = []
+    def clear_(self, list_):
+        list = []
 
     def check_inbox(self):
         if len(self.already_answered) > 35:
-            self.clear_answered()  # lets not overflow :)
+            self.clear_(self.already_answered)  # lets not overflow :)
         childrentime = None
         while childrentime is None:
             response_inbox = self.req_obj.get("https://oauth.reddit.com/message/inbox.json")
-            try:
-                error401 = response_inbox.json()['error']
-                logging.error(error401)
+            if response_inbox.json().setdefault("error", "tokenvar") != "tokenvar":
                 return "tokenal"
-            except:
-                pass
             try:
                 childrentime = HandledDict(response_inbox.json())['data']['children']
             except:

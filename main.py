@@ -6,7 +6,6 @@ from info import useragent, client_id, client_code, bot_username, bot_pass, ocr_
 
 twitterlinker = rbot.rBot(useragent, client_id, client_code, bot_username, bot_pass)
 twitterlinker.get_token()
-checked_post = []
 while True:
     #INBOX CHECK
     id_urlname = twitterlinker.check_inbox()
@@ -32,7 +31,7 @@ while True:
         else:
             pic = jsurl[0]['data']['children'][0]['data']['url']
 
-        if jsurl[0]['data']['children'][0]['data']['is_self']:
+        if jsurl[0]['data']['children'][0]['data'].setdefault("post_hint", -1) != -1:
             print('text post')
             twitterlinker.send_reply(
                 'Im a bot and I find links to the twitter screenshots. \r\n i dunno why you called me this post has no image',
@@ -100,7 +99,7 @@ while True:
     for last_submission in last_submissions:
         curr_post = last_submission["data"]
         pThing = curr_post["name"]
-        if not curr_post["is_self"] and not curr_post["is_video"] and not pThing in checked_post:
+        if curr_post.setdefault("post_hint", -1) == "image" and pThing not in twitterlinker.checked_post:
             if not twitterlinker.check_if_already_post(pThing):
                 if is_api_up():
                     username, twitlink, atliatsiz, wordcount, reasons = ocr_and_twit(curr_post["url"], "tur", ocr_api_key, need_at=False)
@@ -109,7 +108,7 @@ while True:
                         username, twitlink, atliatsiz, wordcount, reasons = ocr_and_twit(curr_post["url"], "tur", ocr_api_key, need_at=False)
                 else:
                     time.sleep(30)
-                    continue
+                    break
                 if not username == -1 and username and not atliatsiz:
                     print("TWEET POSTU BULUNDU")
                     messagetxt = "ben bir botum ve tweet screenshotlarının linklerini buluyorum.\r\n" \
@@ -121,14 +120,12 @@ while True:
                     print("tweet postu degil")
             else:
                 print("feed check: cevaplanmis")
-            checked_post.append(pThing)
+            twitterlinker.checked_post.append(pThing)
         else:
             print("pic degil ya da cevaplandi")
 
     # SCORE CHECK
     twitterlinker.check_last_comment_scores()
 
-    if len(checked_post) > 35:
-        checked_post = []
     print('\r\nbekleniyor')
     time.sleep(12)
