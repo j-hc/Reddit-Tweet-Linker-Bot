@@ -4,7 +4,6 @@ import rbot
 from info import useragent, client_id, client_code, bot_username, bot_pass, ocr_api_key
 
 
-
 twitterlinker = rbot.rBot(useragent, client_id, client_code, bot_username, bot_pass)
 twitterlinker.get_token()
 checked_post = []

@@ -9,6 +9,15 @@ logging.basicConfig(level=logging.INFO, datefmt='%Y-%m-%d-%H:%M',
                     format='%(asctime)s, %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s')
 
 
+class HandledDict(dict):
+    def __getitem__(self, item):
+        try:
+            return dict.__getitem__(self, item)
+        except KeyError:
+            logging.error("couldnt get '{0}' from: {1}".format(item, dict.__str__(self)))
+            raise
+
+
 class BlockAll(cookiejar.CookiePolicy):
     return_ok = set_ok = domain_return_ok = path_return_ok = lambda self, *args, **kwargs: False
     netscape = True
@@ -36,7 +45,7 @@ class rBot():
         post_data = {"grant_type": "password", "username": self.bot_username, "password": self.bot_pass}
         response_token = requests.post("https://www.reddit.com/api/v1/access_token", auth=client_auth, data=post_data,
                                        headers={"User-Agent": self.useragent})
-        access_token = response_token.json()['access_token']
+        access_token = HandledDict(response_token.json())['access_token']
         logging.info('got new token: ' + access_token)
         self.req_obj.headers.update({"Authorization": "bearer {0}".format(access_token)})
 
@@ -47,7 +56,7 @@ class rBot():
     def send_reply(self, text, id_):
         data = {'api_type': 'json', 'return_rtjson': '1', 'text': text, "thing_id": id_}
         rply_req = self.req_obj.post("https://oauth.reddit.com/api/comment", data=data)
-        reply_s = rply_req.json()
+        reply_s = HandledDict(rply_req.json())
         try:
             to_log = str(reply_s["json"]["errors"])
             logging.warning(to_log)
@@ -64,21 +73,15 @@ class rBot():
 
     def check_last_comment_scores(self, limit=5):
         profile = self.req_obj.get("https://oauth.reddit.com/user/{}.json?limit={}".format(self.bot_username, limit))
-        try:
-            cm_bodies = profile.json()["data"]["children"]
-        except Exception as e:
-            print(profile.json())
-            raise e
+        cm_bodies = HandledDict(profile.json())["data"]["children"]
         for cm_body in cm_bodies:
             if cm_body["data"]["score"] <= -1:
                 self.del_comment(cm_body["data"]["name"])
 
     def check_if_already(self, context, depth=2):
-        #comment_info_req = self.req_obj.get("https://oauth.reddit.com/comments/{0}/_/{1}.json?depth={2}".format(linkid.split('_')[1],
-        #                                                                    commentid.split('_')[1], str(depth)))
         comment_info_req = self.req_obj.get("https://oauth.reddit.com{0}?depth={1}".format(context, str(depth)))
         try:
-            authors = comment_info_req.json()[1]['data']['children'][0]['data']['replies']['data']['children']
+            authors = HandledDict(comment_info_req.json()[1])['data']['children'][0]['data']['replies']['data']['children']
         except:
             return False
 
@@ -91,7 +94,7 @@ class rBot():
 
     def check_if_already_post(self, linkid):
         comment_info_req = self.req_obj.get("https://oauth.reddit.com/comments/{}/.json".format(linkid.split('_')[1]))
-        for reply in comment_info_req.json()[1]["data"]["children"]:
+        for reply in HandledDict(comment_info_req.json()[1])["data"]["children"]:
             if reply["data"]["author"] == self.bot_username:
                 return True
         return False
@@ -107,12 +110,12 @@ class rBot():
             response_inbox = self.req_obj.get("https://oauth.reddit.com/message/inbox.json")
             try:
                 error401 = response_inbox.json()['error']
-                logging.error(response_inbox.json())
+                logging.error(error401)
                 return "tokenal"
             except:
                 pass
             try:
-                childrentime = response_inbox.json()['data']['children']
+                childrentime = HandledDict(response_inbox.json())['data']['children']
             except:
                 logging.warning('server mesgul 30sn bekle')
                 time.sleep(30)
@@ -161,13 +164,7 @@ class rBot():
                 else:
                     logging.info('already answered to: ' + summoner)
 
-
     def fetch_subreddit_posts(self, sub, count):
         posts = self.req_obj.get("https://oauth.reddit.com/r/{}/new.json?limit={}".format(sub, str(count)))
-        
-        try:
-            rt = posts.json()["data"]["children"]##################################
-        except Exception as e:
-            print(posts.json())
-            raise e
+        rt = HandledDict(posts.json())["data"]["children"]
         return rt
