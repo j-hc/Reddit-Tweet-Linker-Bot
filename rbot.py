@@ -62,7 +62,11 @@ class rBot():
 
     def check_last_comment_scores(self, limit=5):
         profile = self.req_obj.get("https://oauth.reddit.com/user/{}.json?limit={}".format(self.bot_username, limit))
-        cm_bodies = profile.json()["data"]["children"]
+        try:
+            cm_bodies = profile.json()["data"]["children"]
+        except Exception as e:
+            print(profile.json())
+            raise e
         for cm_body in cm_bodies:
             if cm_body["data"]["score"] <= -1:
                 self.del_comment(cm_body["data"]["name"])
@@ -78,6 +82,8 @@ class rBot():
 
         for author in authors:
             if author['data']['author'] == self.bot_username:
+                self.already_answered.append(context.split("/")[-2])
+                logging.info("added into already answered")
                 return True
         return False
 
@@ -128,13 +134,12 @@ class rBot():
                 logging.info('nothing new')
                 return False
             elif type == 'username_mention':
-                logging.info("username mention")
+                logging.info("username_mention")
                 if commentid_full in self.already_answered:
                     logging.info('already answered')
                     continue
-                elif self.check_if_already(context, commentid_full):
+                elif self.check_if_already(context):
                     logging.info('already answered to: ' + summoner)
-                    self.already_answered.append(commentid_full)
                     continue
                 if 'custom_url' in body_lower:
                     custom = body_lower[body_lower.find("(") + 1:body_lower.find(")")]
@@ -144,7 +149,7 @@ class rBot():
             # BAD BOT
             elif type == "comment_reply" and commentid_full not in self.already_answered and (body_lower == "bad bot" or body_lower == "kotu bot" or body_lower == "kötü bot"):
                 logging.info("comment_reply")
-                if not self.check_if_already(context, commentid_full):
+                if not self.check_if_already(context):
                     if sub == "turkey" or sub == "turkeyjerky":
                         messagetxt = "mesajımı downvotelayarak kaldırabilirsiniz :("
                     else:
@@ -154,9 +159,14 @@ class rBot():
                     self.send_reply(text=messagetxt, id_=commentid_full)
                 else:
                     logging.info('already answered to: ' + summoner)
-                    self.already_answered.append(commentid_full)
 
 
     def fetch_subreddit_posts(self, sub, count):
         posts = self.req_obj.get("https://oauth.reddit.com/r/{}/new.json?limit={}".format(sub, str(count)))
-        return posts.json()["data"]["children"]
+        
+        try:
+            rt = posts.json()["data"]["children"]##################################
+        except Exception as e:
+            print(posts.json())
+            raise e
+        return rt
