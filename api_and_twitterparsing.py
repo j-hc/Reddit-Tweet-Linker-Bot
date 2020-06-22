@@ -2,33 +2,38 @@ import requests
 from bs4 import BeautifulSoup
 import json
 import urllib.parse
+import time
 
-def is_api_up():
-    stat_page = requests.get('https://status.ocr.space/')
-    soup = BeautifulSoup(stat_page.content, "lxml")
-    status = soup.find('span', class_='status')
-    status = str(status).split('>')[1].split('<')[0].strip()
-    if status == 'DOWN':
-        print("api down")
-        return False
-    else:
-        return True
+
+def is_api_up(wait=False):
+    while True:
+        stat_page = requests.get('https://status.ocr.space/')
+        soup = BeautifulSoup(stat_page.content, "lxml")
+        status = soup.find('span', class_='status')
+        status = str(status).split('>')[1].split('<')[0].strip()
+        if status == 'DOWN':
+            print("api down.")
+            if wait:
+                time.sleep(45)
+                continue
+            else:
+                return False
+        else:
+            return True
+
 
 def is_exist_twitter(username):
     pagec = requests.get("https://mobile.twitter.com/{}".format(username), allow_redirects=False, cookies={'m5': 'off'})
     if pagec.status_code == 200:  # OK
         return True
-    elif pagec.status_code == 307:  # account suspended
-        return False
-    elif pagec.status_code == 404:  # DNE
-        return False
     else:
         return False
+
 
 def ocr_and_twit(picurl, lang, ocr_api_key, need_at=True):
     payload = {'apikey': ocr_api_key, 'url': picurl, 'language': lang}
     postre = requests.post("https://api.ocr.space/parse/image", data=payload)
-    print('ocr request\n')
+    print('ocr request')
     try:
         loaded = str(json.loads(postre.content.decode())["ParsedResults"][0]['ParsedText'])
     except KeyError:
@@ -78,7 +83,10 @@ def ocr_and_twit(picurl, lang, ocr_api_key, need_at=True):
             return ret
     else:
         find_at = at.split('@')[1].split(' ')[0].strip()
-        possible_at = [find_at]
+        if is_exist_twitter(find_at):
+            possible_at = [find_at]
+        else:
+            possible_at = []
         if '...' in find_at:
             print("@username tam gozukmuyor")
             possible_at = [""]
@@ -173,7 +181,7 @@ def ocr_and_twit(picurl, lang, ocr_api_key, need_at=True):
             print('tweet text: ' + search_text_use)
             twit_search = 'https://mobile.twitter.com/search?q={}'.format(query)
             print('search link: ' + twit_search)
-            tw = requests.get(twit_search, cookies={'m5': 'off'}, headers={"Accept-Language": "en-US,en;q=0.5"})
+            tw = requests.get(twit_search, cookies={'m5': 'off'})
             soup = BeautifulSoup(tw.content, "lxml")
             search = soup.find('table', class_='tweet')
 

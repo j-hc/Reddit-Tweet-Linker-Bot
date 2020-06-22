@@ -31,7 +31,7 @@ while True:
         else:
             pic = jsurl[0]['data']['children'][0]['data']['url']
 
-        if jsurl[0]['data']['children'][0]['data'].setdefault("post_hint", -1) != -1:
+        if not jsurl[0]['data']['children'][0]['data'].get("post_hint"):
             print('text post')
             twitterlinker.send_reply(
                 'Im a bot and I find links to the twitter screenshots. \r\n i dunno why you called me this post has no image',
@@ -44,7 +44,7 @@ while True:
             lang_arg = 'eng'
         print(lang_arg)
 
-        if is_api_up():
+        if is_api_up(wait=False):
             username, twitlink, atliatsiz, wordcount, reasons = ocr_and_twit(pic, lang_arg, ocr_api_key)
             if username == -1:
                 time.sleep(20)
@@ -99,16 +99,13 @@ while True:
     for last_submission in last_submissions:
         curr_post = last_submission["data"]
         pThing = curr_post["name"]
-        if curr_post.setdefault("post_hint", -1) == "image" and pThing not in twitterlinker.checked_post:
+        if curr_post.get("post_hint") and pThing not in twitterlinker.checked_post:
             if not twitterlinker.check_if_already_post(pThing):
-                if is_api_up():
+                if is_api_up(wait=True):
                     username, twitlink, atliatsiz, wordcount, reasons = ocr_and_twit(curr_post["url"], "tur", ocr_api_key, need_at=False)
                     if username == -1:
                         time.sleep(20)
                         username, twitlink, atliatsiz, wordcount, reasons = ocr_and_twit(curr_post["url"], "tur", ocr_api_key, need_at=False)
-                else:
-                    time.sleep(30)
-                    break
                 if not username == -1 and username and not atliatsiz:
                     print("TWEET POSTU BULUNDU")
                     messagetxt = "ben bir botum ve tweet screenshotlarının linklerini buluyorum.\r\n" \

@@ -9,15 +9,6 @@ logging.basicConfig(level=logging.INFO, datefmt='%Y-%m-%d-%H:%M',
                     format='%(asctime)s, %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s')
 
 
-class HandledDict(dict):
-    def __getitem__(self, item):
-        try:
-            return dict.__getitem__(self, item)
-        except KeyError:
-            logging.error("couldnt get '{0}' from: {1}".format(item, dict.__str__(self)))
-            raise
-
-
 class BlockAll(cookiejar.CookiePolicy):
     return_ok = set_ok = domain_return_ok = path_return_ok = lambda self, *args, **kwargs: False
     netscape = True
@@ -46,7 +37,7 @@ class rBot():
         post_data = {"grant_type": "password", "username": self.bot_username, "password": self.bot_pass}
         response_token = requests.post("https://www.reddit.com/api/v1/access_token", auth=client_auth, data=post_data,
                                        headers={"User-Agent": self.useragent})
-        access_token = HandledDict(response_token.json())['access_token']
+        access_token = response_token.json()['access_token']
         logging.info('got new token: ' + access_token)
         self.req_obj.headers.update({"Authorization": "bearer {0}".format(access_token)})
 
@@ -56,25 +47,26 @@ class rBot():
 
     def send_reply(self, text, id_):
         data = {'api_type': 'json', 'return_rtjson': '1', 'text': text, "thing_id": id_}
-        rply_req = self.req_obj.post("https://oauth.reddit.com/api/comment", data=data)
-        reply_s = HandledDict(rply_req.json())
-        try:
-            to_log = str(reply_s["json"]["errors"])
-            logging.warning(to_log)
-            sec_or_min = "min" if "minute" in to_log else "sec"
-            num_in_err = int(''.join(list(filter(str.isdigit, to_log))))
-            sleep_for = num_in_err if sec_or_min=="sec" else (num_in_err + 1) * 60
-            logging.info("sleeping for {}".format(sleep_for))
-            time.sleep(sleep_for)
-            self.send_reply(text, id_)
-        except:
-            logging.info("message sent")
-            self.already_answered.append(id_)
-            logging.info("added into answered list")
+        while True:
+            rply_req = self.req_obj.post("https://oauth.reddit.com/api/comment", data=data)
+            reply_s = rply_req.json()
+            try:
+                to_log = str(reply_s["json"]["errors"])
+                logging.warning(to_log)
+                sec_or_min = "min" if "minute" in to_log else "sec"
+                num_in_err = int(''.join(list(filter(str.isdigit, to_log))))
+                sleep_for = num_in_err + 5 if sec_or_min=="sec" else (num_in_err + 1) * 60
+                logging.info("sleeping for {}".format(sleep_for))
+                time.sleep(sleep_for)
+                continue
+            except:
+                logging.info("message sent and added into answered list")
+                self.already_answered.append(id_)
+                break
 
     def check_last_comment_scores(self, limit=5):
         profile = self.req_obj.get("https://oauth.reddit.com/user/{}.json?limit={}".format(self.bot_username, limit))
-        cm_bodies = HandledDict(profile.json())["data"]["children"]
+        cm_bodies = profile.json()["data"]["children"]
         for cm_body in cm_bodies:
             if cm_body["data"]["score"] <= -1:
                 self.del_comment(cm_body["data"]["name"])
@@ -82,13 +74,13 @@ class rBot():
     def check_if_already(self, context, depth=2):
         comment_info_req = self.req_obj.get("https://oauth.reddit.com{0}?depth={1}".format(context, str(depth)))
         try:
-            authors = HandledDict(comment_info_req.json()[1])['data']['children'][0]['data']['replies']['data']['children']
+            authors = comment_info_req.json()[1]['data']['children'][0]['data']['replies']['data']['children']
         except:
             return False
 
         for author in authors:
             if author['data']['author'] == self.bot_username:
-                self.already_answered.append(context.split("/")[-2])
+                self.already_answered.append("t1_" + context.split('/')[-2])
                 logging.info("added into already answered")
                 return True
         return False
@@ -97,7 +89,7 @@ class rBot():
         if len(self.checked_post) > 35:
             self.clear_(self.checked_post)
         comment_info_req = self.req_obj.get("https://oauth.reddit.com/comments/{}/.json".format(linkid.split('_')[1]))
-        for reply in HandledDict(comment_info_req.json()[1])["data"]["children"]:
+        for reply in comment_info_req.json()[1]["data"]["children"]:
             if reply["data"]["author"] == self.bot_username:
                 self.checked_post.append(linkid)
                 return True
@@ -115,7 +107,7 @@ class rBot():
             if response_inbox.json().setdefault("error", "tokenvar") != "tokenvar":
                 return "tokenal"
             try:
-                childrentime = HandledDict(response_inbox.json())['data']['children']
+                childrentime = response_inbox.json()['data']['children']
             except:
                 logging.warning('server mesgul 30sn bekle')
                 time.sleep(30)
@@ -166,5 +158,5 @@ class rBot():
 
     def fetch_subreddit_posts(self, sub, count):
         posts = self.req_obj.get("https://oauth.reddit.com/r/{}/new.json?limit={}".format(sub, str(count)))
-        rt = HandledDict(posts.json())["data"]["children"]
+        rt = posts.json()["data"]["children"]
         return rt
