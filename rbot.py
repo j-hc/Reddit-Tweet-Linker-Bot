@@ -66,7 +66,11 @@ class rBot():
 
     def check_last_comment_scores(self, limit=5):
         profile = self.req_obj.get("https://oauth.reddit.com/user/{}.json?limit={}".format(self.bot_username, limit))
-        cm_bodies = profile.json()["data"]["children"]
+        try:
+            cm_bodies = profile.json()["data"]["children"]
+        except:
+            print(profile.content.decode())
+            raise
         for cm_body in cm_bodies:
             if cm_body["data"]["score"] <= -1:
                 self.del_comment(cm_body["data"]["name"])

@@ -6,6 +6,7 @@ from strings import tr, en
 
 twitterlinker = rbot.rBot(useragent, client_id, client_code, bot_username, bot_pass)
 twitterlinker.get_token()
+score_check_step = 0
 while True:
     #INBOX CHECK
     id_urlname = twitterlinker.check_inbox()
@@ -105,7 +106,11 @@ while True:
             print("pic degil ya da cevaplandi")
 
     # SCORE CHECK
-    twitterlinker.check_last_comment_scores()
+    if score_check_step == 5:
+        twitterlinker.check_last_comment_scores()
+        score_check_step = 0
+    else:
+        score_check_step += 1
 
     print('\r\nbekleniyor')
-    time.sleep(12)
+    time.sleep(17)
