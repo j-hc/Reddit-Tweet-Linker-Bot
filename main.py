@@ -106,7 +106,7 @@ while True:
             print("pic degil ya da cevaplandi")
 
     # SCORE CHECK
-    if score_check_step == 5:
+    if score_check_step == 4:
         twitterlinker.check_last_comment_scores()
         score_check_step = 0
     else:

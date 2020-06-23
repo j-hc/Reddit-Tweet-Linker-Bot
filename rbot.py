@@ -91,7 +91,7 @@ class rBot():
 
     def check_if_already_post(self, linkid):
         if len(self.checked_post) > 35:
-            self.clear_(self.checked_post)
+            self.checked_post = []
         comment_info_req = self.req_obj.get("https://oauth.reddit.com/comments/{}/.json".format(linkid.split('_')[1]))
         for reply in comment_info_req.json()[1]["data"]["children"]:
             if reply["data"]["author"] == self.bot_username:
@@ -99,12 +99,9 @@ class rBot():
                 return True
         return False
 
-    def clear_(self, list_):
-        list = []
-
     def check_inbox(self):
         if len(self.already_answered) > 35:
-            self.clear_(self.already_answered)  # lets not overflow :)
+            self.already_answered = [] # lets not overflow :)
         childrentime = None
         while childrentime is None:
             response_inbox = self.req_obj.get("https://oauth.reddit.com/message/inbox.json")

@@ -172,7 +172,7 @@ def ocr_and_twit(picurl, lang, ocr_api_key, need_at=True):
     print(possibe_search_text)
     for at_dene in possible_at:
         for search_text_use in possibe_search_text:
-            if not at_dene == "":
+            if at_dene:
                 print('twitter username: @' + at_dene)
                 query = urllib.parse.quote(search_text_use + ' (from:{})'.format(at_dene))
             else:
@@ -186,7 +186,14 @@ def ocr_and_twit(picurl, lang, ocr_api_key, need_at=True):
             search = soup.find('table', class_='tweet')
 
             try:
-                tweetlink = 'https://twitter.com' + search['href'].split('?p')[0]
+                status_endp = search["href"]
+                found_tweetr = status_endp.split('/')[1]
+                if at_dene and found_tweetr == at_dene:
+                    tweetlink = 'https://twitter.com' + status_endp.split('?p')[0]
+                elif at_dene and found_tweetr != at_dene:
+                    continue
+                else:
+                    tweetlink = 'https://twitter.com' + status_endp.split('?p')[0]
                 print('\r\nFound yay')
                 print(tweetlink)
                 if possible_at[0] == "":
