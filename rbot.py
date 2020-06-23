@@ -108,7 +108,7 @@ class rBot():
         childrentime = None
         while childrentime is None:
             response_inbox = self.req_obj.get("https://oauth.reddit.com/message/inbox.json")
-            if response_inbox.json().setdefault("error", "tokenvar") != "tokenvar":
+            if response_inbox.json().get("error"):
                 return "tokenal"
             try:
                 childrentime = response_inbox.json()['data']['children']
