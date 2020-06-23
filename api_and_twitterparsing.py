@@ -180,7 +180,8 @@ def ocr_and_twit(picurl, lang, ocr_api_key, need_at=True):
             print('tweet text: ' + search_text_use)
             twit_search = 'https://mobile.twitter.com/search?q={}'.format(query)
             print('search link: ' + twit_search)
-            tw = requests.get(twit_search, cookies={'m5': 'off'})
+            accept_lang_header = 'tr-TR,tr;q=0.5' if lang == 'tur' else 'en-US,en;q=0.5'
+            tw = requests.get(twit_search, cookies={'m5': 'off'}, headers={'Accept-Language': accept_lang_header})
             soup = BeautifulSoup(tw.content, "lxml")
             search = soup.find('table', class_='tweet')
 
