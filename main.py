@@ -80,7 +80,7 @@ while True:
         continue
 
     #SUBREDDIT FEED CHECK
-    last_submissions = twitterlinker.fetch_subreddit_posts("testyapiyorum", 2)
+    last_submissions = twitterlinker.fetch_subreddit_posts("turkey", 2)
     for last_submission in last_submissions:
         l_res = tr
         curr_post = last_submission["data"]
