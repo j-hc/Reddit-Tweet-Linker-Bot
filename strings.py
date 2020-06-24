@@ -9,6 +9,7 @@ en = {"introduction": "Im a bot and I find links to the twitter screenshots.",
       "shortened_warn": "i shortened the tweet to find it. the result might be wrong.",
       "outro": "\r\n\n^[[my-owner](https://www.reddit.com/user/peroksizom),[source-code](https://github.com/scrubjay55/Reddit-Tweet-Linker-Bot)]"
                "\r\n\n^downvote ^to ^remove",
+      "archive_info": "i took a backup of the tweet on archive.org in case it gets deleted: [backup]({0})",
 
       "reason_toobig": "image is bigger than 1MB",
       "reason_default": "*shrugs*"
@@ -25,6 +26,8 @@ tr = {"introduction": "ben bir botum ve tweet screenshotlarının linklerini bul
       "shortened_warn": "tweeti bulmak icin kısaltarak aramak zorunda kaldım. sonuç doğru olmayabilir.",
       "outro": "\r\n\n^[[sahibim](https://www.reddit.com/user/peroksizom),[source-code](https://github.com/scrubjay55/Reddit-Tweet-Linker-Bot)]" \
                 "\r\n\n^yanlıssa ^kaldırmak ^için ^downvotelayın ^:)",
+      "archive_info": "silinirse diye archive.org da tweetin yedeğini aldım: [yedek]({0})",
+
       "reason_toobig": "görüntü boyutu çok büyük(>1MB)",
       "reason_default": "*shrugs*"
       }

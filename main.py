@@ -56,7 +56,9 @@ while True:
             twitterlinker.send_reply(messagetxt, id_)
             continue
         print('OCR DONE')
-
+        if twitlink:
+            print("getting backup archive")
+            backup_link = capture_tweet_arch(twitlink)
         if reasons == REASON_DEFAULT:
             reason = l_res["reason_default"]
         elif reasons == REASON_TOO_BIG:
@@ -65,13 +67,13 @@ while True:
             reason = l_res["reason_default"]
 
         messagetxt = l_res["hello"].format(user) + "\r\n" + l_res["introduction"] + "\r\n"
-        if twitlink == "":
+        if not twitlink:
             messagetxt += l_res["because"].format(reason)
         else:
             if atliatsiz:
                 messagetxt += l_res["couldnt_find_at"].format(twitlink)
             elif not atliatsiz:
-                messagetxt += l_res["success"].format(username, twitlink)
+                messagetxt += l_res["success"].format(username, twitlink) + "\r\n\n" + l_res["archive_info"].format(backup_link)
             if wordcount <= 4:
                 messagetxt += "\r\n" + l_res["shortened_warn"]
         messagetxt += l_res["outro"]
@@ -81,7 +83,7 @@ while True:
         continue
 
     #SUBREDDIT FEED CHECK
-    last_submissions = twitterlinker.fetch_subreddit_posts("turkey", 2)
+    last_submissions = twitterlinker.fetch_subreddit_posts("testyapiyorum", 2)
     for last_submission in last_submissions:
         l_res = tr
         curr_post = last_submission["data"]
@@ -94,8 +96,10 @@ while True:
                         time.sleep(20)
                         username, twitlink, atliatsiz, wordcount, reasons = ocr_and_twit(curr_post["url"], "tur", ocr_api_key, need_at=False)
                 if not username == -1 and username and not atliatsiz:
-                    print("TWEET POSTU BULUNDU")
-                    messagetxt = l_res["introduction"] + "\r\n" + l_res["success"].format(username, twitlink) + l_res["outro"]
+                    backup_link = capture_tweet_arch(twitlink)
+                    print("TWEET POSTU BULUNDU. BACKUP ALINDI")
+                    messagetxt = l_res["introduction"] + "\r\n" + l_res["success"].format(username, twitlink) \
+                                 + "\r\n\n" + l_res["archive_info"].format(backup_link) + l_res["outro"]
                     twitterlinker.send_reply(messagetxt, pThing)
                 else:
                     print("tweet postu degil")

@@ -7,6 +7,15 @@ import time
 REASON_TOO_BIG = -2
 REASON_DEFAULT = -3
 
+
+def capture_tweet_arch(url):
+    data = {
+        'url': url,
+        'capture_all': 'on'
+    }
+    requests.post('http://web.archive.org/save/{}'.format(url), data=data)
+    return "https://web.archive.org/web/submit?url={}".format(url)
+
 def is_api_up(wait=False):
     while True:
         stat_page = requests.get('https://status.ocr.space/')
@@ -186,14 +195,14 @@ def ocr_and_twit(picurl, lang, ocr_api_key, need_at=True):
             search = soup.find('table', class_='tweet')
 
             try:
-                status_endp = search["href"]
+                status_endp = search["href"].split('?p')[0]
                 found_tweetr = status_endp.split('/')[1]
                 if at_dene and found_tweetr == at_dene:
-                    tweetlink = 'https://twitter.com' + status_endp.split('?p')[0]
+                    tweetlink = 'https://twitter.com' + status_endp
                 elif at_dene and found_tweetr != at_dene:
                     continue
                 else:
-                    tweetlink = 'https://twitter.com' + status_endp.split('?p')[0]
+                    tweetlink = 'https://twitter.com' + status_endp
                 print('\r\nFound yay')
                 print(tweetlink)
                 if possible_at[0] == "":
