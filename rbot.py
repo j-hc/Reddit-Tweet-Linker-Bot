@@ -29,7 +29,7 @@ class rBot():
     def prep_session(self):
         req_obj = requests.Session()
         req_obj.cookies.set_policy(BlockAll())  # we dont need cookies
-        req_obj.headers = {"User-Agent": self.useragent}
+        req_obj.headers.update({"User-Agent": self.useragent})
         return req_obj
 
     def get_token(self):
@@ -160,5 +160,9 @@ class rBot():
 
     def fetch_subreddit_posts(self, sub, count):
         posts = self.req_obj.get("https://oauth.reddit.com/r/{}/new.json?limit={}".format(sub, str(count)))
-        rt = posts.json()["data"]["children"]
+        try:
+            rt = posts.json()["data"]["children"]
+        except:
+            print(posts.json())
+            raise
         return rt
