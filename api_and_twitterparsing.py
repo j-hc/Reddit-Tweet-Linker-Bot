@@ -1,11 +1,21 @@
 import requests
 from bs4 import BeautifulSoup
-import json
 import urllib.parse
-import time
+import io
+from PIL import Image
+from platform import system
+import pytesseract
+import re
+
 
 REASON_TOO_BIG = -2
 REASON_DEFAULT = -3
+REASON_NO_TEXT = -4
+
+if system() == "Windows":
+    pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract'
+elif system() == "Linux":
+    pytesseract.pytesseract.tesseract_cmd = r'/usr/bin/tesseract'
 
 
 def capture_tweet_arch(url):
@@ -16,22 +26,6 @@ def capture_tweet_arch(url):
     requests.post('http://web.archive.org/save/{}'.format(url), data=data)
     return "https://web.archive.org/web/submit?url={}".format(url)
 
-def is_api_up(wait=False):
-    while True:
-        stat_page = requests.get('https://status.ocr.space/')
-        soup = BeautifulSoup(stat_page.content, "lxml")
-        status = soup.find('span', class_='status')
-        status = str(status).split('>')[1].split('<')[0].strip()
-        if status == 'DOWN':
-            print("api down.")
-            if wait:
-                time.sleep(45)
-                continue
-            else:
-                return False
-        else:
-            return True
-
 
 def is_exist_twitter(username):
     pagec = requests.get("https://mobile.twitter.com/{}".format(username), allow_redirects=False, cookies={'m5': 'off'})
@@ -41,10 +35,15 @@ def is_exist_twitter(username):
         return False
 
 
-def ocr_and_twit(picurl, lang, ocr_api_key, need_at=True):
-    payload = {'apikey': ocr_api_key, 'url': picurl, 'language': lang}
-    postre = requests.post("https://api.ocr.space/parse/image", data=payload)
-    print('ocr request')
+def tesseract(picurl, lang, need_at=True):
+    pic_bytes = requests.get(picurl).content
+    pic_file_like = io.BytesIO(pic_bytes)
+    "1,3,4"
+    "11,12"
+    text = pytesseract.image_to_string(Image.open(pic_file_like), config=r'--psm 11', lang=lang)
+    text = text.replace('©', '@')
+    print(text)
+    """
     try:
         loaded = str(json.loads(postre.content.decode())["ParsedResults"][0]['ParsedText'])
     except KeyError:
@@ -53,26 +52,21 @@ def ocr_and_twit(picurl, lang, ocr_api_key, need_at=True):
     except:
         ret = (-1, "", "", "", "")
         return ret
+    """
+    split_loaded = text.split('\n')
 
-    print(loaded)
-    split_loaded = loaded.split('\r\n')
-
-    at = ""
     i = 0
     for at in split_loaded:
         i = i + 1
-        if '@' in at:
+        if re.compile('@([A-Za-z0-9_]+)').fullmatch(at):
             break
-        else:
-            at = ""
-    if not at:
+    else:
+        at = ""
         i = 0
 
-    y = ['Twitter for', 'Translate', 'Twitter Web App', '•', 'for iOS', 'for Android']
+    y = ['Twitter for', 'Translate Tweet', 'Twitter Web App', 'PM - ', '20 - ', '19 - ', 'for iOS', 'for Android']
     search_list = []
     ah = i
-
-    print(split_loaded)
     for s in split_loaded[i:len(split_loaded)]:
         if not any(yasak in s for yasak in y):
             if (len(s) > 13 or '@' in s) and ah >= i and 'Replying to @' not in s:
@@ -83,7 +77,6 @@ def ocr_and_twit(picurl, lang, ocr_api_key, need_at=True):
     search_list = ' '.join(search_list).split(' ')
     search_list = [x for x in search_list if '#' not in x and x]
     search_text = ' '.join(search_list)
-
     if not at:
         print("@username gozukmuyor")
         possible_at = [""]
@@ -118,11 +111,12 @@ def ocr_and_twit(picurl, lang, ocr_api_key, need_at=True):
                 if is_exist_twitter(find_at):
                     possible_at.append(find_at)
     if not search_text:
-        ret = ("", "", "", "", REASON_DEFAULT)
+        print("no text")
+        ret = ("", "", "", "", REASON_NO_TEXT)
         return ret
 
-    print("search_text: " + search_text)
     possibe_search_text = [search_text]
+    print(search_text)
     search_text_splitted = search_text.split(' ')
     search_text_splitted_2 = search_text.split(' ')
     search_text_splitted_3 = search_text.split(' ')
@@ -164,17 +158,6 @@ def ocr_and_twit(picurl, lang, ocr_api_key, need_at=True):
     ekle = new2.strip()
     if ekle not in possibe_search_text:
         possibe_search_text.append(ekle)
-    """
-    if '@' in search_text:
-        new = search_text.split('@')[0].strip()
-        if new not in possibe_search_text:
-            possibe_search_text.append(new)
-        temp = search_text.split(' ')
-        new2 = ' '.join(s for s in temp if not any(c.isdigit() for c in s))
-        ekle = new2.strip()
-        if ekle not in possibe_search_text:
-            possibe_search_text.append(ekle)
-    """
     print("possible at's: ", end="")
     print(possible_at)
     print("possible search texts: ", end="")

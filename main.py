@@ -1,6 +1,6 @@
 from api_and_twitterparsing import *
 import rbot
-from info import useragent, client_id, client_code, bot_username, bot_pass, ocr_api_key
+from info import useragent, client_id, client_code, bot_username, bot_pass
 from strings import tr, en
 from time import sleep
 import traceback
@@ -47,16 +47,7 @@ def mainloop():
                 twitterlinker.send_reply(l_res["introduction"] + "\r\n" + l_res["no_image_err"], id_)
                 continue
 
-            if is_api_up(wait=False):
-                username, twitlink, atliatsiz, wordcount, reasons = ocr_and_twit(pic, lang_arg, ocr_api_key)
-                if username == -1:
-                    time.sleep(20)
-                    username, twitlink, atliatsiz, wordcount, reasons = ocr_and_twit(pic, lang_arg, ocr_api_key)
-            else:
-                messagetxt = l_res["hello"].format(user) + "\r\n" + l_res["introduction"] + "\r\n" + l_res["api_down_err"]
-                print('api down')
-                twitterlinker.send_reply(messagetxt, id_)
-                continue
+            username, twitlink, atliatsiz, wordcount, reasons = tesseract(pic, lang_arg + '+eng')
             print('OCR DONE')
             if twitlink:
                 print("getting backup archive")
@@ -65,6 +56,8 @@ def mainloop():
                 reason = l_res["reason_default"]
             elif reasons == REASON_TOO_BIG:
                 reason = l_res["reason_toobig"]
+            elif reasons == REASON_NO_TEXT:
+                reason = l_res["reason_notext"]
             else:
                 reason = l_res["reason_default"]
 
@@ -92,11 +85,7 @@ def mainloop():
             pThing = curr_post["name"]
             if curr_post.get("post_hint") and pThing not in twitterlinker.checked_post:
                 if not twitterlinker.check_if_already_post(pThing):
-                    if is_api_up(wait=True):
-                        username, twitlink, atliatsiz, wordcount, reasons = ocr_and_twit(curr_post["url"], "tur", ocr_api_key, need_at=False)
-                        if username == -1:
-                            time.sleep(20)
-                            username, twitlink, atliatsiz, wordcount, reasons = ocr_and_twit(curr_post["url"], "tur", ocr_api_key, need_at=False)
+                    username, twitlink, atliatsiz, wordcount, reasons = tesseract(curr_post["url"], "tur", need_at=False)
                     if not username == -1 and username and not atliatsiz:
                         backup_link = capture_tweet_arch(twitlink)
                         print("TWEET POSTU BULUNDU. BACKUP ALINDI")
@@ -119,7 +108,7 @@ def mainloop():
             score_check_step += 1
 
         print('\r\nbekleniyor')
-        time.sleep(17)
+        sleep(17)
 
 while True:
     try:

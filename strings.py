@@ -12,6 +12,7 @@ en = {"introduction": "Im a bot and I find links to the twitter screenshots.",
       "archive_info": "i took a backup of the tweet on archive.org in case it gets deleted: [backup]({0})",
 
       "reason_toobig": "image is bigger than 1MB",
+      "reason_notext": "i cant see a text",
       "reason_default": "*shrugs*"
       }
 
@@ -29,5 +30,6 @@ tr = {"introduction": "ben bir botum ve tweet screenshotlarının linklerini bul
       "archive_info": "silinirse diye archive.org da tweetin yedeğini aldım: [yedek]({0})",
 
       "reason_toobig": "görüntü boyutu çok büyük(>1MB)",
+      "reason_notext": "görüntüde yazı yok",
       "reason_default": "*shrugs*"
       }
