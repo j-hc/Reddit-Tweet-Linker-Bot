@@ -1,4 +1,0 @@
-beautifulsoup4>=4.9.1
-boto3>=1.14.20
-lxml>=4.5.2
-requests>=2.24.0

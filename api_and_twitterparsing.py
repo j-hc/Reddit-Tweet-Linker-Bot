@@ -1,21 +1,19 @@
 import requests
 from bs4 import BeautifulSoup
 import urllib.parse
-import io
-from PIL import Image
-from platform import system
-import pytesseract
+from info import aws_id, aws_secret
 import re
+import boto3
+import os
+
+os.environ["AWS_ACCESS_KEY_ID"] = aws_id
+os.environ["AWS_SECRET_ACCESS_KEY"] = aws_secret
+os.environ["AWS_DEFAULT_REGION"] = "us-west-1"
 
 
 REASON_TOO_BIG = -2
 REASON_DEFAULT = -3
 REASON_NO_TEXT = -4
-
-if system() == "Windows":
-    pytesseract.pytesseract.tesseract_cmd = r'C:\Program Files\Tesseract-OCR\tesseract'
-elif system() == "Linux":
-    pytesseract.pytesseract.tesseract_cmd = r'/usr/bin/tesseract'
 
 
 def capture_tweet_arch(url):
@@ -35,33 +33,28 @@ def is_exist_twitter(username):
         return False
 
 
-def tesseract(picurl, lang, need_at=True):
-    pic_bytes = requests.get(picurl).content
-    pic_file_like = io.BytesIO(pic_bytes)
-    "1,3,4"
-    "11,12"
-    text = pytesseract.image_to_string(Image.open(pic_file_like), config=r'--psm 11', lang=lang)
-    text = text.replace('©', '@')
-    print(text)
-    """
-    try:
-        loaded = str(json.loads(postre.content.decode())["ParsedResults"][0]['ParsedText'])
-    except KeyError:
-        ret = ("", "", "", "", REASON_TOO_BIG)
-        return ret
-    except:
-        ret = (-1, "", "", "", "")
-        return ret
-    """
-    split_loaded = text.split('\n')
+def ocr(picurl, lang, need_at=True):
+    pic_req = requests.get(picurl).content
+
+    imageBytes = bytearray(pic_req)
+    textract = boto3.client('textract')
+    response = textract.detect_document_text(Document={'Bytes': imageBytes})
+    text = []
+    for item in response["Blocks"]:
+        if item["BlockType"] == "LINE":
+            text.append(item["Text"])
+
+    split_loaded = text
 
     i = 0
-    for at in split_loaded:
+    at = ""
+    for at_dnm in split_loaded:
         i = i + 1
-        if re.compile('@([A-Za-z0-9_]+)').fullmatch(at):
+        at_re = re.search(r'@([A-Za-z0-9_]+)', at_dnm)
+        if at_re:
+            at = at_re.group(0)
             break
     else:
-        at = ""
         i = 0
 
     y = ['Twitter for', 'Translate Tweet', 'Twitter Web App', 'PM - ', '20 - ', '19 - ', 'for iOS', 'for Android']
