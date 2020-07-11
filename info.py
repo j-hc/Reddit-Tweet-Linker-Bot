@@ -1,7 +1,7 @@
 useragent = 'tweetlinker/2 by u/peroksizom'
 client_id = ''
 client_code = ''
-bot_username = 'tweetlinker'
+bot_username = ''
 bot_pass = ''
 aws_secret = ''
 aws_id = ''
