@@ -5,11 +5,11 @@ from info import aws_id, aws_secret
 import re
 import boto3
 import os
+from turkish.deasciifier import Deasciifier
 
 os.environ["AWS_ACCESS_KEY_ID"] = aws_id
 os.environ["AWS_SECRET_ACCESS_KEY"] = aws_secret
 os.environ["AWS_DEFAULT_REGION"] = "us-west-1"
-
 
 REASON_TOO_BIG = -2
 REASON_DEFAULT = -3
@@ -42,7 +42,13 @@ def ocr(picurl, lang, need_at=True):
     text = []
     for item in response["Blocks"]:
         if item["BlockType"] == "LINE":
-            text.append(item["Text"])
+            text_item = item["Text"]
+            if lang == "tur" and "@" not in text_item:
+                deasciifier = Deasciifier(text_item)
+                deasciified_turkish = deasciifier.convert_to_turkish()
+                text.append(deasciified_turkish)
+            else:
+                text.append(text_item)
 
     split_loaded = text
 
@@ -63,10 +69,13 @@ def ocr(picurl, lang, need_at=True):
     for s in split_loaded[i:len(split_loaded)]:
         if not any(yasak in s for yasak in y):
             if (len(s) > 13 or '@' in s) and ah >= i and 'Replying to @' not in s:
+                print(s.strip())
                 search_list.append(s.strip())
         else:
             break
         ah = ah + 1
+    exit()
+
     search_list = ' '.join(search_list).split(' ')
     search_list = [x for x in search_list if '#' not in x and x]
     search_text = ' '.join(search_list)
