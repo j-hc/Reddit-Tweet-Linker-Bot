@@ -1,7 +1,6 @@
-useragent = 'tweetlinker/2 by u/peroksizom'
+useragent = '
 client_id = ''
 client_code = ''
 bot_username = ''
 bot_pass = ''
-aws_secret = ''
-aws_id = ''
+gcloud_creds_path = r'' # service account creds
