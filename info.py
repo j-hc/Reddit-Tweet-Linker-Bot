@@ -1,4 +1,4 @@
-useragent = '
+useragent = ''
 client_id = ''
 client_code = ''
 bot_username = ''
