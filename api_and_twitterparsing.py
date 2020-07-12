@@ -1,15 +1,12 @@
 import requests
 from bs4 import BeautifulSoup
 import urllib.parse
-from info import aws_id, aws_secret
 import re
-import boto3
+from google.cloud import vision
 import os
-from turkish.deasciifier import Deasciifier
+from info import gcloud_creds_path
 
-os.environ["AWS_ACCESS_KEY_ID"] = aws_id
-os.environ["AWS_SECRET_ACCESS_KEY"] = aws_secret
-os.environ["AWS_DEFAULT_REGION"] = "us-west-1"
+os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = gcloud_creds_path
 
 REASON_TOO_BIG = -2
 REASON_DEFAULT = -3
@@ -21,37 +18,37 @@ def capture_tweet_arch(url):
         'url': url,
         'capture_all': 'on'
     }
-    requests.post('http://web.archive.org/save/{}'.format(url), data=data)
-    return "https://web.archive.org/web/submit?url={}".format(url)
+    requests.post(f'http://web.archive.org/save/{url}', data=data)
+    return f"https://web.archive.org/web/submit?url={url}"
 
 
 def is_exist_twitter(username):
-    pagec = requests.get("https://mobile.twitter.com/{}".format(username), allow_redirects=False, cookies={'m5': 'off'})
+    pagec = requests.get(f"https://mobile.twitter.com/{username}", allow_redirects=False, cookies={'m5': 'off'})
     if pagec.status_code == 200:  # OK
         return True
     else:
         return False
 
 
-def ocr(picurl, lang, need_at=True):
-    pic_req = requests.get(picurl).content
+def vision_ocr(picurl):
+    client = vision.ImageAnnotatorClient()
+    response = client.annotate_image({
+        'image': {'source': {'image_uri': picurl}},
+        'features': [{'type': vision.enums.Feature.Type.TEXT_DETECTION}],
+    })
+    try:
+        txt = response.text_annotations[0].description
+    except:
+        txt = None
+    return txt
 
-    imageBytes = bytearray(pic_req)
-    textract = boto3.client('textract')
-    response = textract.detect_document_text(Document={'Bytes': imageBytes})
-    text = []
-    for item in response["Blocks"]:
-        if item["BlockType"] == "LINE":
-            text_item = item["Text"]
-            if lang == "tur" and "@" not in text_item:
-                deasciifier = Deasciifier(text_item)
-                deasciified_turkish = deasciifier.convert_to_turkish()
-                text.append(deasciified_turkish)
-            else:
-                text.append(text_item)
 
-    split_loaded = text
-
+def prep_text(text, need_at):
+    try:
+        split_loaded = text.split('\n')
+    except:
+        ret = {"result": "error", "reason": REASON_DEFAULT}
+        return ret
     i = 0
     at = ""
     for at_dnm in split_loaded:
@@ -63,18 +60,16 @@ def ocr(picurl, lang, need_at=True):
     else:
         i = 0
 
-    y = ['Twitter for', 'Translate Tweet', 'Twitter Web App', 'PM - ', '20 - ', '19 - ', 'for iOS', 'for Android']
+    y = ['Twitter for', 'Translate Tweet', 'Twitter Web App', 'PM - ', '20 - ', '19 - ', 'for iOS', 'for Android', ' Retweet ', ' Beğeni ']
     search_list = []
     ah = i
     for s in split_loaded[i:len(split_loaded)]:
         if not any(yasak in s for yasak in y):
             if (len(s) > 13 or '@' in s) and ah >= i and 'Replying to @' not in s:
-                print(s.strip())
                 search_list.append(s.strip())
         else:
             break
         ah = ah + 1
-    exit()
 
     search_list = ' '.join(search_list).split(' ')
     search_list = [x for x in search_list if '#' not in x and x]
@@ -82,8 +77,8 @@ def ocr(picurl, lang, need_at=True):
     if not at:
         print("@username gozukmuyor")
         possible_at = [""]
-        if not need_at:
-            ret = ("", "", "", "", REASON_DEFAULT)
+        if need_at:
+            ret = {"result": "error", "reason": REASON_DEFAULT}
             return ret
     else:
         find_at = at.split('@')[1].split(' ')[0].strip()
@@ -114,11 +109,11 @@ def ocr(picurl, lang, need_at=True):
                     possible_at.append(find_at)
     if not search_text:
         print("no text")
-        ret = ("", "", "", "", REASON_NO_TEXT)
+        ret = {"result": "error", "reason": REASON_NO_TEXT}
         return ret
 
     possibe_search_text = [search_text]
-    print(search_text)
+    #print(search_text)
     search_text_splitted = search_text.split(' ')
     search_text_splitted_2 = search_text.split(' ')
     search_text_splitted_3 = search_text.split(' ')
@@ -141,10 +136,10 @@ def ocr(picurl, lang, need_at=True):
     for _ in range(0, round(len(search_text_splitted_3) * 3 / 5)):
         search_text_splitted_3.pop(0)
         possibe_search_text.append(" ".join(search_text_splitted_3))
-    os = 1
+    oss = 1
     while len(search_text_splitted) > 3:
-        os = os + 1
-        if os % 2 == 0:
+        oss = oss + 1
+        if oss % 2 == 0:
             search_text_splitted.pop(-1)
             to_app = " ".join(search_text_splitted)
             if to_app not in possibe_search_text:
@@ -160,20 +155,25 @@ def ocr(picurl, lang, need_at=True):
     ekle = new2.strip()
     if ekle not in possibe_search_text:
         possibe_search_text.append(ekle)
-    print("possible at's: ", end="")
-    print(possible_at)
-    print("possible search texts: ", end="")
-    print(possibe_search_text)
+    #print("possible at's: ", end="")
+    #print(possible_at)
+    #print("possible search texts: ", end="")
+    #print(possibe_search_text)
+    return_dic = {"result": "success", "possible_at": possible_at, "possibe_search_text": possibe_search_text}
+    return return_dic
+
+
+def twitter_search(possible_at, possibe_search_text, lang):
     for at_dene in possible_at:
         for search_text_use in possibe_search_text:
             if at_dene:
-                print('twitter username: @' + at_dene)
+                #print('twitter username: @' + at_dene)
                 query = urllib.parse.quote(search_text_use + ' (from:{})'.format(at_dene))
             else:
                 query = urllib.parse.quote(search_text_use)
-            print('tweet text: ' + search_text_use)
+            #print('tweet text: ' + search_text_use)
             twit_search = 'https://mobile.twitter.com/search?q={}'.format(query)
-            print('search link: ' + twit_search)
+            #print('search link: ' + twit_search)
             accept_lang_header = 'tr-TR,tr;q=0.5' if lang == 'tur' else 'en-US,en;q=0.5'
             tw = requests.get(twit_search, cookies={'m5': 'off'}, headers={'Accept-Language': accept_lang_header})
             soup = BeautifulSoup(tw.content, "lxml")
@@ -188,18 +188,16 @@ def ocr(picurl, lang, need_at=True):
                     continue
                 else:
                     tweetlink = 'https://twitter.com' + status_endp
-                print('\r\nFound yay')
-                print(tweetlink)
+                print('\r\nFound yay: ' + tweetlink)
                 if possible_at[0] == "":
                     tweeter = ""
                     atsiz = True
                 else:
                     tweeter = at_dene
                     atsiz = False
-                ret = (tweeter, tweetlink, atsiz, len(search_text_use.split(' ')), ("", ""))
-                return ret
+                return_dic = {"result": "success", "username": tweeter, "twitlink": tweetlink, "atliatsiz": atsiz}
+                return return_dic
             except:
                 pass
-
-    ret = ("", "", "", "", REASON_DEFAULT)
+    ret = {"result": "error"}
     return ret

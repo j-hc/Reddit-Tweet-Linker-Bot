@@ -5,14 +5,56 @@ from datetime import datetime
 import logging
 from http import cookiejar
 
-logging.basicConfig(level=logging.INFO, datefmt='%Y-%m-%d %H:%M',
-                    format='%(asctime)s, %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s')
+logging.basicConfig(level=logging.INFO, datefmt='%H:%M',
+                    format='%(asctime)s, [%(filename)s:%(lineno)d] %(funcName)s(): %(message)s')
+logger = logging.getLogger("logger")
 
 
 class BlockAll(cookiejar.CookiePolicy):
     return_ok = set_ok = domain_return_ok = path_return_ok = lambda self, *args, **kwargs: False
     netscape = True
     rfc2965 = hide_cookie2 = False
+
+
+class rPostListing():
+    def __init__(self, child):
+        js = child['data']
+        self.commentid_full = self.linkid = js['name']
+        sub = str(js['subreddit']).lower()
+        if sub == "turkey" or sub == "turkeyjerky" or sub == "testyapiyorum":  # #######tr subs
+            self.lang_arg = 'tur'
+        else:
+            self.lang_arg = 'eng'
+        self.summoner = str(js['author']).lower()
+        self.custom = None
+        self.listing = True
+        self.permalink = js["permalink"]
+
+    def __repr__(self):
+        return "postobject: www.reddit.com" + self.permalink
+
+
+class rPost():
+    def __init__(self, child):
+        js = child['data']
+        self.body_lower = str(js['body']).lower()
+        self.commentid_full = js['name']
+        sub = str(js['subreddit']).lower()
+        if sub == "turkey" or sub == "turkeyjerky" or sub == "testyapiyorum":  # #######tr subs
+            self.lang_arg = 'tur'
+        else:
+            self.lang_arg = 'eng'
+        self.summoner = str(js['author']).lower()
+        self.ptype = js['type']
+        self.context = str(js['context']).split("?")[0]
+        self.linkid = 't3_' + self.context.split('/')[4]
+        self.created_utc = int(js['created_utc'])
+        self.custom = None
+        self.listing = False
+        self.permalink = self.context
+
+    def __repr__(self):
+        return "postobject: www.reddit.com" + self.permalink
 
 
 class rBot():
@@ -24,6 +66,7 @@ class rBot():
         self.bot_pass = bot_pass
         self.already_answered = []
         self.checked_post = []
+        self.checked_notif = []
         self.req_obj = self.prep_session()
 
     def prep_session(self):
@@ -37,46 +80,44 @@ class rBot():
         post_data = {"grant_type": "password", "username": self.bot_username, "password": self.bot_pass}
         response_token = requests.post("https://www.reddit.com/api/v1/access_token", auth=client_auth, data=post_data,
                                        headers={"User-Agent": self.useragent})
-        print(response_token.request.headers)
         access_token = response_token.json()['access_token']
-        logging.info('got new token: ' + access_token)
+        logger.info('got new token: ' + access_token)
         self.req_obj.headers.update({"Authorization": "bearer {0}".format(access_token)})
 
     def del_comment(self, thingid):
         self.req_obj.post("https://oauth.reddit.com/api/del", data={"id": thingid})
-        logging.info("comment removed")
+        logger.info("comment removed")
 
     def send_reply(self, text, id_):
         data = {'api_type': 'json', 'return_rtjson': '1', 'text': text, "thing_id": id_}
-        while True:
-            rply_req = self.req_obj.post("https://oauth.reddit.com/api/comment", data=data)
-            reply_s = rply_req.json()
-            try:
-                to_log = str(reply_s["json"]["errors"])
-                logging.warning(to_log)
-                sec_or_min = "min" if "minute" in to_log else "sec"
-                num_in_err = int(''.join(list(filter(str.isdigit, to_log))))
-                sleep_for = num_in_err + 5 if sec_or_min=="sec" else (num_in_err + 1) * 60
-                logging.info("sleeping for {}".format(sleep_for))
-                time.sleep(sleep_for)
-                continue
-            except:
-                logging.info("message sent and added into answered list")
-                self.already_answered.append(id_)
-                break
+        rply_req = self.req_obj.post("https://oauth.reddit.com/api/comment", data=data)
+        reply_s = rply_req.json()
+        try:
+            to_log = str(reply_s["json"]["errors"])
+            logging.warning(to_log)
+            sec_or_min = "min" if "minute" in to_log else "sec"
+            num_in_err = int(''.join(list(filter(str.isdigit, to_log))))
+            sleep_for = num_in_err + 5 if sec_or_min == "sec" else (num_in_err + 1) * 60
+            logger.info("sleeping for {}".format(sleep_for))
+            return sleep_for
+        except:
+            logger.info("message sent")
+            return 0
 
     def check_last_comment_scores(self, limit=5):
         profile = self.req_obj.get("https://oauth.reddit.com/user/{}.json?limit={}".format(self.bot_username, limit))
-        try:
-            cm_bodies = profile.json()["data"]["children"]
-        except:
-            print(profile.content.decode())
-            raise
+        cm_bodies = profile.json()["data"]["children"]
         for cm_body in cm_bodies:
             if cm_body["data"]["score"] <= -1:
                 self.del_comment(cm_body["data"]["name"])
 
     def check_if_already(self, context, depth=2):
+        if len(self.already_answered) > 35:
+            self.already_answered = []  # lets not overflow :)
+        commentidfull = "t1_" + context.split('/')[-2]
+        if commentidfull in self.already_answered:
+            return True
+        self.already_answered.append(commentidfull)
         comment_info_req = self.req_obj.get("https://oauth.reddit.com{0}?depth={1}".format(context, str(depth)))
         try:
             authors = comment_info_req.json()[1]['data']['children'][0]['data']['replies']['data']['children']
@@ -85,24 +126,23 @@ class rBot():
 
         for author in authors:
             if author['data']['author'] == self.bot_username:
-                self.already_answered.append("t1_" + context.split('/')[-2])
-                logging.info("added into already answered")
+                logger.info("added into already answered")
                 return True
         return False
 
     def check_if_already_post(self, linkid):
         if len(self.checked_post) > 35:
             self.checked_post = []
+        if linkid in self.checked_post:
+            return True
+        self.checked_post.append(linkid)
         comment_info_req = self.req_obj.get("https://oauth.reddit.com/comments/{}/.json".format(linkid.split('_')[1]))
         for reply in comment_info_req.json()[1]["data"]["children"]:
             if reply["data"]["author"] == self.bot_username:
-                self.checked_post.append(linkid)
                 return True
         return False
 
     def check_inbox(self):
-        if len(self.already_answered) > 35:
-            self.already_answered = [] # lets not overflow :)
         childrentime = None
         while childrentime is None:
             response_inbox = self.req_obj.get("https://oauth.reddit.com/message/inbox.json")
@@ -117,52 +157,33 @@ class rBot():
         t = datetime.now()
         time_unix = time.mktime(t.timetuple())
 
-        custom = ""
         for child in childrentime:
-            js = child['data']
-            body_lower = str(js['body']).lower()
-            commentid_full = js['name']
-            sub = str(js['subreddit']).lower()
-            summoner = str(js['author']).lower()
-            linkid = js['parent_id']
-            type = js['type']
-            context = str(js['context']).split("?")[0]
-            created_utc = int(js['created_utc'])
-            if created_utc < int(time_unix) - 4000:
-                logging.info('nothing new')
+            new_notif = rPost(child)
+            if new_notif.created_utc < int(time_unix) - 4000:
+                logger.info('nothing new')
                 return False
-            elif type == 'username_mention':
-                logging.info("username_mention")
-                if commentid_full in self.already_answered:
-                    logging.info('already answered')
+            elif new_notif.context in self.checked_notif:
+                continue
+            elif new_notif.ptype == 'username_mention':
+                if self.check_if_already(new_notif.context):
+                    logger.info('already answered to: ' + new_notif.summoner)
                     continue
-                elif self.check_if_already(context):
-                    logging.info('already answered to: ' + summoner)
-                    continue
-                if 'custom_url' in body_lower:
-                    custom = body_lower[body_lower.find("(") + 1:body_lower.find(")")]
-                toanswer = (commentid_full, linkid, sub, custom, summoner)
+                if 'custom_url' in new_notif.body_lower:
+                    new_notif.custom = new_notif.body_lower[
+                                       new_notif.body_lower.find("(") + 1:new_notif.body_lower.find(")")]
+                toanswer = {"notif": new_notif, "type": "normal"}
+                self.checked_notif.append(new_notif.context)
                 return toanswer
 
             # BAD BOT
-            elif type == "comment_reply" and commentid_full not in self.already_answered and (body_lower == "bad bot" or body_lower == "kotu bot" or body_lower == "kötü bot"):
-                logging.info("comment_reply")
-                if not self.check_if_already(context):
-                    if sub == "turkey" or sub == "turkeyjerky":
-                        messagetxt = "mesajımı downvotelayarak kaldırabilirsiniz :("
-                    else:
-                        messagetxt = "you can downvote me to remove :("
+            elif new_notif.ptype == "comment_reply" and not self.check_if_already(new_notif.context) and \
+                    (new_notif.body_lower == "bad bot" or new_notif.body_lower == "kotu bot" or new_notif.body_lower == "kötü bot"):
+                toanswer = {"notif": new_notif, "type": "badbot"}
+                self.checked_notif.append(new_notif.context)
+                return toanswer
 
-                    logging.info("bad bot comment :(")
-                    self.send_reply(text=messagetxt, id_=commentid_full)
-                else:
-                    logging.info('already answered to: ' + summoner)
 
     def fetch_subreddit_posts(self, sub, count):
         posts = self.req_obj.get("https://oauth.reddit.com/r/{}/new.json?limit={}".format(sub, str(count)))
-        try:
-            rt = posts.json()["data"]["children"]
-        except:
-            print(posts.json())
-            raise
+        rt = posts.json()["data"]["children"]
         return rt

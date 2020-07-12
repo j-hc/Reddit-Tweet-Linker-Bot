@@ -1,5 +1,4 @@
 beautifulsoup4>=4.9.1
-boto3>=1.14.20
+google-cloud-vision>=1.0.0
+grpcio>=1.30.0
 lxml>=4.5.2
-requests>=2.24.0
--e git+https://github.com/emres/turkish-deasciifier.git#egg=turkish-deasciifier

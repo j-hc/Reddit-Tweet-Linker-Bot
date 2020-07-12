@@ -5,6 +5,12 @@ from strings import tr, en
 from time import sleep
 import traceback
 
+def is_text_post(jsurl):
+    if jsurl[0]['data']['children'][0]['data'].get("post_hint"):
+        return True
+    else:
+        return False
+
 def mainloop():
     twitterlinker = rbot.rBot(useragent, client_id, client_code, bot_username, bot_pass)
     twitterlinker.get_token()
@@ -29,48 +35,52 @@ def mainloop():
             print('SUMMONLANDIM #####')
             print(lang_arg)
 
-            if not linkid.split('_')[0] == 't3':
-                print('not main reply')
-                twitterlinker.send_reply(l_res["introduction"] + " " + l_res["not_main_reply_err"], id_)
-                continue
-
             response = requests.get('https://www.reddit.com/{}/.json'.format(linkid.split('_')[1]),
                                     headers={"User-Agent": useragent})
             jsurl = response.json()
-            if not customurl == "":
+            if customurl:
                 pic = customurl
             else:
                 pic = jsurl[0]['data']['children'][0]['data']['url']
 
-            if not jsurl[0]['data']['children'][0]['data'].get("post_hint"):
-                print('text post')
-                twitterlinker.send_reply(l_res["introduction"] + "\r\n" + l_res["no_image_err"], id_)
-                continue
-
-            username, twitlink, atliatsiz, wordcount, reasons = tesseract(pic, lang_arg + '+eng')
-            print('OCR DONE')
-            if twitlink:
-                print("getting backup archive")
-                backup_link = capture_tweet_arch(twitlink)
-            if reasons == REASON_DEFAULT:
-                reason = l_res["reason_default"]
-            elif reasons == REASON_TOO_BIG:
-                reason = l_res["reason_toobig"]
-            elif reasons == REASON_NO_TEXT:
-                reason = l_res["reason_notext"]
-            else:
-                reason = l_res["reason_default"]
-
             messagetxt = l_res["hello"].format(user) + "\r\n" + l_res["introduction"] + "\r\n"
-            if not twitlink:
-                messagetxt += l_res["because"].format(reason)
+            reason = None
+            if is_text_post(jsurl):
+                print('text post')
+                reason = "\r\n" + l_res["no_image_err"]
+                # twitterlinker.send_reply(l_res["introduction"] + "\r\n" + l_res["no_image_err"], id_)
+                # continue
             else:
-                if atliatsiz:
-                    messagetxt += l_res["couldnt_find_at"].format(twitlink)
-                elif not atliatsiz:
-                    messagetxt += l_res["success"].format(username, twitlink) + "\r\n\n" + l_res["archive_info"].format(backup_link)
-                if wordcount <= 4:
-                    messagetxt += "\r\n" + l_res["shortened_warn"]
+                textt = vision_ocr(pic)
+                prepped_text = prep_text(textt)
+                if prepped_text.get("result") == "success":
+                    possible_at = prepped_text.get("possible_at")
+                    possibe_search_text = prepped_text.get("possibe_search_text")
+
+                    search_twitter = twitter_search(possible_at, possibe_search_text, lang_arg)
+                    print('OCR DONE')
+                    if search_twitter.get("result") == "success":
+                        username = search_twitter.get("username")
+                        twitlink = search_twitter.get("twitlink")
+                        atliatsiz = search_twitter.get("atliatsiz")
+
+                        print("getting backup archive")
+                        backup_link = capture_tweet_arch(twitlink)
+
+                        if atliatsiz:
+                            messagetxt += l_res["couldnt_find_at"].format(twitlink)
+                        elif not atliatsiz:
+                            messagetxt += l_res["success"].format(username, twitlink) + "\r\n\n" + \
+                                          l_res["archive_info"].format(backup_link)
+
+                else:
+                    if prepped_text.get("reason") == REASON_NO_TEXT:
+                        reason = l_res["reason_notext"]
+                    else:
+                        reason = l_res["reason_default"]
+
+            if reason:
+                messagetxt += l_res["because"].format(reason)
             messagetxt += l_res["outro"]
 
             twitterlinker.send_reply(messagetxt, id_)
@@ -86,7 +96,7 @@ def mainloop():
             if curr_post.get("post_hint") and pThing not in twitterlinker.checked_post:
                 if not twitterlinker.check_if_already_post(pThing):
                     username, twitlink, atliatsiz, wordcount, reasons = tesseract(curr_post["url"], "tur", need_at=False)
-                    if not username == -1 and username and not atliatsiz:
+                    if username and not atliatsiz:
                         backup_link = capture_tweet_arch(twitlink)
                         print("TWEET POSTU BULUNDU. BACKUP ALINDI")
                         messagetxt = l_res["introduction"] + "\r\n" + l_res["success"].format(username, twitlink) \
