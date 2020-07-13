@@ -7,6 +7,7 @@ import os
 from info import gcloud_creds_path
 
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = gcloud_creds_path
+client = vision.ImageAnnotatorClient()
 
 REASON_TOO_BIG = -2
 REASON_DEFAULT = -3
@@ -31,7 +32,6 @@ def is_exist_twitter(username):
 
 
 def vision_ocr(picurl):
-    client = vision.ImageAnnotatorClient()
     response = client.annotate_image({
         'image': {'source': {'image_uri': picurl}},
         'features': [{'type': vision.enums.Feature.Type.TEXT_DETECTION}],

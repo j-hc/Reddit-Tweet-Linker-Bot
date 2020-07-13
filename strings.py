@@ -5,9 +5,9 @@ en = {"introduction": "Im a bot and I find links to the twitter screenshots.",
       "success": "this was tweeted by @{0} and if I'm not wrong the link is: {1}",
       "outro": "\r\n\n^[[my-owner](https://www.reddit.com/user/peroksizom),[source-code](https://github.com/scrubjay55/Reddit-Tweet-Linker-Bot)]"
                "\r\n\n^downvote ^to ^remove",
-      "archive_info": "i took a backup of the tweet on archive.org in case it gets deleted: [backup]({0})",
+      "archive_info": "I took a backup of the tweet on archive.org in case it gets deleted: [backup]({0})",
       "badbot": "you can downvote me to remove :(",
-      "goodbot": "tnks (◡ ‿ ◡ ✿)",
+      "goodbot": "thnks (◡ ‿ ◡ ✿)",
 
       "reason_toobig": "image is bigger than 1MB",
       "reason_notext": "i cant see a text",

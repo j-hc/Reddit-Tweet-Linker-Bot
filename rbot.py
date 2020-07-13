@@ -5,6 +5,8 @@ from datetime import datetime
 import logging
 from http import cookiejar
 
+turkish_subs = ["turkey", "turkeyjerky", "testyapiyorum"]
+
 logging.basicConfig(level=logging.INFO, datefmt='%H:%M',
                     format='%(asctime)s, [%(filename)s:%(lineno)d] %(funcName)s(): %(message)s')
 logger = logging.getLogger("logger")
@@ -21,7 +23,7 @@ class rPostListing():
         js = child['data']
         self.commentid_full = self.linkid = js['name']
         sub = str(js['subreddit']).lower()
-        if sub == "turkey" or sub == "turkeyjerky" or sub == "testyapiyorum":  # #######tr subs
+        if sub in turkish_subs:  # #######tr subs
             self.lang_arg = 'tur'
         else:
             self.lang_arg = 'eng'
@@ -66,7 +68,6 @@ class rBot():
         self.bot_pass = bot_pass
         self.already_answered = []
         self.checked_post = []
-        self.checked_notif = []
         self.req_obj = self.prep_session()
 
     def prep_session(self):
@@ -97,7 +98,7 @@ class rBot():
             logging.warning(to_log)
             sec_or_min = "min" if "minute" in to_log else "sec"
             num_in_err = int(''.join(list(filter(str.isdigit, to_log))))
-            sleep_for = num_in_err + 5 if sec_or_min == "sec" else (num_in_err + 1) * 60
+            sleep_for = num_in_err + 5 if sec_or_min == "sec" else (num_in_err * 60) + 5
             logger.info("sleeping for {}".format(sleep_for))
             return sleep_for
         except:
@@ -162,35 +163,28 @@ class rBot():
             if new_notif.created_utc < int(time_unix) - 4000:
                 logger.info('nothing new')
                 return False
-            elif new_notif.context in self.checked_notif:
+            elif self.check_if_already(new_notif.context):
+                logger.info('already answered to: ' + new_notif.summoner)
                 continue
             elif new_notif.ptype == 'username_mention':
-                if self.check_if_already(new_notif.context):
-                    logger.info('already answered to: ' + new_notif.summoner)
-                    continue
                 if 'custom_url' in new_notif.body_lower:
                     new_notif.custom = new_notif.body_lower[
                                        new_notif.body_lower.find("(") + 1:new_notif.body_lower.find(")")]
                 toanswer = {"notif": new_notif, "type": "normal"}
-                self.checked_notif.append(new_notif.context)
                 return toanswer
+            elif new_notif.ptype == "comment_reply":
+                # BAD BOT
+                if any(x in new_notif.body_lower for x in ["bad bot", "kotu bot", "kötü bot"]):
+                    toanswer = {"notif": new_notif, "type": "badbot"}
+                    return toanswer
+                # GOOD BOT
+                elif any(x in new_notif.body_lower for x in ["good bot", "iyi bot"]):
+                    toanswer = {"notif": new_notif, "type": "goodbot"}
+                    return toanswer
 
-            # BAD BOT
-            elif new_notif.ptype == "comment_reply" and not self.check_if_already(new_notif.context) and \
-                    (new_notif.body_lower == "bad bot" or new_notif.body_lower == "kotu bot" or new_notif.body_lower == "kötü bot"):
-                toanswer = {"notif": new_notif, "type": "badbot"}
-                self.checked_notif.append(new_notif.context)
-                return toanswer
-
-            # GOOD BOT
-            elif new_notif.ptype == "comment_reply" and not self.check_if_already(new_notif.context) and \
-                    (new_notif.body_lower == "good bot" or new_notif.body_lower == "iyi bot"):
-                toanswer = {"notif": new_notif, "type": "goodbot"}
-                self.checked_notif.append(new_notif.context)
-                return toanswer
-
-
-    def fetch_subreddit_posts(self, sub, count):
-        posts = self.req_obj.get("https://oauth.reddit.com/r/{}/new.json?limit={}".format(sub, str(count)))
-        rt = posts.json()["data"]["children"]
-        return rt
+    def fetch_subreddit_posts(self, subs, count):
+        for sub in subs:
+            posts = self.req_obj.get(f"https://oauth.reddit.com/r/{sub}/new.json?limit={str(count)}")
+            rtt = posts.json()["data"]["children"]
+            for rt in rtt:
+                yield rt

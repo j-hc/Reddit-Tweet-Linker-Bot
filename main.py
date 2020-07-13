@@ -6,10 +6,15 @@ from time import sleep
 import queue
 import threading
 
+subs_listening = ["testyapiyorum", "turkey"]
+
 
 def is_img_post(jsurl):
-    if jsurl['data'].get("post_hint") == "image":
-        return True
+    if not jsurl['data'].get("is_self"):
+        if str(jsurl['data']['url']).split(".")[-1].lower() in ["jpg", "jpeg", "png", "tiff", "bmp"]:
+            return True
+        else:
+            return False
     else:
         return False
 
@@ -26,7 +31,7 @@ def replier(to_reply_q):
 def sub_feed_checking(to_answer_q):
     # SUBREDDIT FEED CHECK
     while True:
-        last_submissions = twitterlinker.fetch_subreddit_posts("turkey", 2)  # listening to only r/turkey atm
+        last_submissions = twitterlinker.fetch_subreddit_posts(subs_listening, 2)
         for last_submission in last_submissions:
             curr_post = rPostListing(last_submission)
             if not twitterlinker.check_if_already_post(curr_post.commentid_full):
@@ -64,9 +69,11 @@ def searching(to_answer_q, to_reply_q):
             l_res = en
 
         if postobj["type"] == "badbot":
+            print("bad bot")
             to_reply_q.put({"text": l_res["badbot"], "thing": postobj["notif"].commentid_full})
             continue
         elif postobj["type"] == "goodbot":
+            print("good bot")
             to_reply_q.put({"text": l_res["goodbot"], "thing": postobj["notif"].commentid_full})
             continue
         else:
@@ -74,16 +81,16 @@ def searching(to_answer_q, to_reply_q):
             postobj = postobj["notif"]
         response = requests.get('https://www.reddit.com/{}/.json'.format(postobj.linkid.split('_')[1]),
                                 headers={"User-Agent": useragent})
-        jsurl = response.json()
+        jsurl = response.json()[0]['data']['children'][0]
         if postobj.custom:
             pic = postobj.custom
         else:
-            pic = jsurl[0]['data']['children'][0]['data']['url']
+            pic = jsurl['data']['url']
 
         messagetxt = l_res["hello"].format(postobj.summoner) + "\r\n" + l_res["introduction"] + "\r\n"
         reason = None
         need_at = False if postobj.listing is False else True
-        if not is_img_post(jsurl[0]['data']['children'][0]):
+        if not is_img_post(jsurl):
             print('text post')
             reason = "\r\n" + l_res["no_image_err"]
         else:
