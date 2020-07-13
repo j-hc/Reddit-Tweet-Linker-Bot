@@ -5,7 +5,7 @@ from datetime import datetime
 import logging
 from http import cookiejar
 
-turkish_subs = ["turkey", "turkeyjerky", "testyapiyorum"]
+turkish_subs = ["turkey", "turkeyjerky", "testyapiyorum", "kgbtr"]
 
 logging.basicConfig(level=logging.INFO, datefmt='%H:%M',
                     format='%(asctime)s, [%(filename)s:%(lineno)d] %(funcName)s(): %(message)s')
