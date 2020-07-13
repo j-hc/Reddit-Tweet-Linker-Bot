@@ -18,9 +18,10 @@ def replier(to_reply_q):
     while True:
         to_reply = to_reply_q.get()
         replied = twitterlinker.send_reply(to_reply["text"], to_reply["thing"])
-        if not replied == 0:
+        if replied != 0:
             to_reply_q.put(to_reply)
             sleep(replied)
+
 
 def sub_feed_checking(to_answer_q):
     # SUBREDDIT FEED CHECK
@@ -64,9 +65,12 @@ def searching(to_answer_q, to_reply_q):
 
         if postobj["type"] == "badbot":
             to_reply_q.put({"text": l_res["badbot"], "thing": postobj["notif"].commentid_full})
-            #twitterlinker.send_reply(l_res["badbot"], postobj["notif"].commentid_full)
+            continue
+        elif postobj["type"] == "goodbot":
+            to_reply_q.put({"text": l_res["goodbot"], "thing": postobj["notif"].commentid_full})
             continue
         else:
+            # NOT A COMMENT_REPLY
             postobj = postobj["notif"]
         response = requests.get('https://www.reddit.com/{}/.json'.format(postobj.linkid.split('_')[1]),
                                 headers={"User-Agent": useragent})
@@ -119,9 +123,9 @@ def searching(to_answer_q, to_reply_q):
             messagetxt += l_res["because"].format(reason)
         messagetxt += l_res["outro"]
 
-        #twitterlinker.send_reply(messagetxt, postobj.commentid_full)
         to_reply_q.put({"text": messagetxt, "thing": postobj.commentid_full})
         print('search DONE: ' + postobj.commentid_full)
+
 
 if __name__ == "__main__":
     twitterlinker = rBot(useragent, client_id, client_code, bot_username, bot_pass)

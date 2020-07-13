@@ -182,6 +182,13 @@ class rBot():
                 self.checked_notif.append(new_notif.context)
                 return toanswer
 
+            # GOOD BOT
+            elif new_notif.ptype == "comment_reply" and not self.check_if_already(new_notif.context) and \
+                    (new_notif.body_lower == "good bot" or new_notif.body_lower == "iyi bot"):
+                toanswer = {"notif": new_notif, "type": "goodbot"}
+                self.checked_notif.append(new_notif.context)
+                return toanswer
+
 
     def fetch_subreddit_posts(self, sub, count):
         posts = self.req_obj.get("https://oauth.reddit.com/r/{}/new.json?limit={}".format(sub, str(count)))
