@@ -65,7 +65,7 @@ def searching(to_answer_q, to_reply_q):
         if postobj["type"] == "badbot":
             to_reply_q.put({"text": l_res["badbot"], "thing": postobj["notif"].commentid_full})
             #twitterlinker.send_reply(l_res["badbot"], postobj["notif"].commentid_full)
-            return
+            continue
         else:
             postobj = postobj["notif"]
         response = requests.get('https://www.reddit.com/{}/.json'.format(postobj.linkid.split('_')[1]),
