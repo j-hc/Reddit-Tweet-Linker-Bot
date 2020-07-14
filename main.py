@@ -110,7 +110,7 @@ def searching(to_answer_q, to_reply_q):
                     backup_link = capture_tweet_arch(twitlink)
 
                     if atliatsiz:
-                        messagetxt += l_res["couldnt_find_at"].format(twitlink)
+                        messagetxt += l_res["couldnt_find_at"].format(username, twitlink)
                     elif not atliatsiz:
                         messagetxt += l_res["success"].format(username, twitlink) + "\r\n\n" + \
                                       l_res["archive_info"].format(backup_link)

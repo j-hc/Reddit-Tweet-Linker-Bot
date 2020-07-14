@@ -43,6 +43,7 @@ def vision_ocr(picurl):
     try:
         txt = response.text_annotations[0].description
     except:
+        print("aaaaaaaaaaaaaaaaaaaaaaaaaaaa")
         txt = None
     return txt
 
@@ -53,23 +54,29 @@ def prep_text(text, need_at):
     except:  # NoneType return from ocr
         ret = {"result": "error", "reason": Reasons.DEFAULT}
         return ret
-    i = 0
-    at = ""
-    for at_dnm in split_loaded:
-        i = i + 1
-        at_re = re.search(r'@([A-Za-z0-9_]+)', at_dnm)
-        if at_re:
-            at = at_re.group(0)
-            break
-    else:
-        i = 0
 
-    y = ['Twitter for', 'Translate Tweet', 'Twitter Web App', 'PM - ', '20 - ', '19 - ', 'for iOS', 'for Android', ' Retweet ', ' Beğeni ']
+    at = None
+    for at_dnm in range(len(split_loaded) - 1, 0, -1):
+        if "adlı kişiye yanıt olarak" in split_loaded[at_dnm] or "Replying to @" in split_loaded[at_dnm]:
+            at_re = re.search(r'@([A-Za-z0-9_]+)', split_loaded[at_dnm - 1])
+            if at_re:
+                at = at_re.group(0).replace("@", "")
+                break
+        else:
+            at_re = re.search(r'@([A-Za-z0-9_]+)', split_loaded[at_dnm])
+            if at_re:
+                at = at_re.group(0).replace("@", "")
+                break
+    else:
+        at_dnm = 0
+    at_dnm += 1
+    y = ['Twitter for', 'Translate Tweet', 'Twitter Web App', 'PM - ', '20 - ', '19 - ', 'for iOS', 'for Android',
+         ' Beğeni ']
     search_list = []
-    ah = i
-    for s in split_loaded[i:len(split_loaded)]:
+    ah = at_dnm
+    for s in split_loaded[at_dnm:len(split_loaded)]:
         if not any(yasak in s for yasak in y):
-            if (len(s) > 13 or '@' in s) and ah >= i and 'Replying to @' not in s:
+            if (len(s) > 13 or '@' in s) and ah >= at_dnm:
                 search_list.append(s.strip())
         else:
             break
@@ -85,39 +92,33 @@ def prep_text(text, need_at):
             ret = {"result": "error", "reason": Reasons.NO_AT}
             return ret
     else:
-        find_at = at.split('@')[1].split(' ')[0].strip()
-        if is_exist_twitter(find_at):
-            possible_at = [find_at]
-        else:
-            possible_at = []
-        if '...' in find_at:
-            print("@username tam gozukmuyor")
+        find_at = at
+        possible_at = [""]
+        if '...' in find_at or not len(find_at) >= 5:
             possible_at = [""]
         else:
-            if 'l' in find_at:
-                find_at2 = find_at.replace('l', 'I')
-                if is_exist_twitter(find_at2):
-                    possible_at.append(find_at2)
-            if 'I' in find_at:
-                find_at3 = find_at.replace('I', 'l')
-                if is_exist_twitter(find_at3):
-                    possible_at.append(find_at3)
-            if 'ı' in find_at:
-                find_at4 = find_at.replace('ı', 'i')
-                if is_exist_twitter(find_at4):
-                    possible_at.append(find_at4)
-
-            for _ in range(0, round(len(find_at) * 1 / 3)):
-                find_at = find_at[:-1]
-                if is_exist_twitter(find_at):
-                    possible_at.append(find_at)
+            if is_exist_twitter(find_at):
+                possible_at = [find_at]
+            else:
+                if 'l' in find_at:
+                    find_at2 = find_at.replace('l', 'I')
+                    if is_exist_twitter(find_at2):
+                        possible_at.append(find_at2)
+                if 'I' in find_at:
+                    find_at3 = find_at.replace('I', 'l')
+                    if is_exist_twitter(find_at3):
+                        possible_at.append(find_at3)
+                """for _ in range(0, round(len(find_at) * 1 / 3)):
+                    find_at = find_at[:-1]
+                    if is_exist_twitter(find_at):
+                        possible_at.append(find_at)"""
     if not search_text:
         print("no text")
         ret = {"result": "error", "reason": Reasons.NO_TEXT}
         return ret
 
     possibe_search_text = [search_text]
-    #print(search_text)
+    # print(search_text)
     search_text_splitted = search_text.split()
     search_text_splitted_2 = search_text.split()
     search_text_splitted_3 = search_text.split()
@@ -159,10 +160,10 @@ def prep_text(text, need_at):
     ekle = new2.strip()
     if ekle not in possibe_search_text:
         possibe_search_text.append(ekle)
-    #print("possible at's: ", end="")
-    #print(possible_at)
-    #print("possible search texts: ", end="")
-    #print(possibe_search_text)
+    # print("possible at's: ", end="")
+    # print(possible_at)
+    # print("possible search texts: ", end="")
+    # print(possibe_search_text)
     return_dic = {"result": "success", "possible_at": possible_at, "possibe_search_text": possibe_search_text}
     return return_dic
 
@@ -170,14 +171,16 @@ def prep_text(text, need_at):
 def twitter_search(possible_at, possibe_search_text, lang):
     for at_dene in possible_at:
         for search_text_use in possibe_search_text:
+            if len(search_text_use.split()) > 50:
+                continue
             if at_dene:
-                #print('twitter username: @' + at_dene)
+                print('twitter username: ' + at_dene)
                 query = urllib.parse.quote(search_text_use + ' (from:{})'.format(at_dene))
             else:
                 query = urllib.parse.quote(search_text_use)
             print('tweet text: ' + search_text_use)
             twit_search = 'https://mobile.twitter.com/search?q={}'.format(query)
-            #print('search link: ' + twit_search)
+            print('search link: ' + twit_search)
             accept_lang_header = 'tr-TR,tr;q=0.5' if lang == 'tur' else 'en-US,en;q=0.5'
             tw = requests.get(twit_search, cookies={'m5': 'off'}, headers={'Accept-Language': accept_lang_header})
             soup = BeautifulSoup(tw.content, "lxml")
@@ -185,23 +188,24 @@ def twitter_search(possible_at, possibe_search_text, lang):
 
             try:
                 status_endp = search["href"].split('?p')[0]
-                found_tweetr = status_endp.split('/')[1]
-                if at_dene and found_tweetr == at_dene:
-                    tweetlink = 'https://twitter.com' + status_endp
-                elif at_dene and found_tweetr != at_dene:
-                    continue
-                else:
-                    tweetlink = 'https://twitter.com' + status_endp
-                print('\r\nFound yay: ' + tweetlink)
-                if possible_at[0] == "":
-                    tweeter = ""
-                    atsiz = True
-                else:
-                    tweeter = at_dene
-                    atsiz = False
-                return_dic = {"result": "success", "username": tweeter, "twitlink": tweetlink, "atliatsiz": atsiz}
-                return return_dic
-            except:
-                pass
+            except TypeError:
+                continue
+            found_tweetr = status_endp.split('/')[1]
+
+            if at_dene and found_tweetr != at_dene:
+                continue
+
+            tweetlink = 'https://twitter.com' + status_endp
+
+            print('\r\nFound yay: ' + tweetlink)
+            if possible_at[0] == "":
+                tweeter = found_tweetr
+                atsiz = True
+            else:
+                tweeter = at_dene
+                atsiz = False
+            return_dic = {"result": "success", "username": tweeter, "twitlink": tweetlink, "atliatsiz": atsiz}
+            return return_dic
+
     ret = {"result": "error"}
     return ret

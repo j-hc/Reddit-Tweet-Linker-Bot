@@ -6,7 +6,7 @@ import logging
 from http import cookiejar
 
 # Some stuff.. ------------------
-turkish_subs = ["turkey", "turkeyjerky", "testyapiyorum", "kgbtr"]
+turkish_subs = ["turkey", "turkeyjerky", "testyapiyorum", "kgbtr", "svihs"]
 bad_bot_strs = ["bad bot", "kotu bot", "kötü bot"]
 good_bot_strs = ["good bot", "iyi bot", "güzel bot", "cici bot"]
 # -------------------------------
