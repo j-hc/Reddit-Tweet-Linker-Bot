@@ -132,6 +132,12 @@ def searching(to_answer_q, to_reply_q):
         print('search DONE: ' + postobj.commentid_full)
 
 
+def score_listener():
+    while True:
+        twitterlinker.check_last_comment_scores()
+        sleep(150)
+
+
 if __name__ == "__main__":
     twitterlinker = rBot(useragent, client_id, client_code, bot_username, bot_pass)
 
@@ -141,11 +147,13 @@ if __name__ == "__main__":
     searching_t = threading.Thread(target=searching, args=(to_answer_q, to_reply_q), daemon=True)
     replier_t = threading.Thread(target=replier, args=(to_reply_q,), daemon=True)
     sub_listener = threading.Thread(target=sub_feed_checking, args=(to_answer_q,), daemon=True)
+    score_listener = threading.Thread(target=score_listener, daemon=True)
 
     checking_t.start()
     searching_t.start()
     sub_listener.start()
     replier_t.start()
+    score_listener.start()
 
     while True:
         print(f"\033[4msearching jobs: {[search['notif'] for search in list(to_answer_q.queue)]}\033[0m")

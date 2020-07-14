@@ -116,7 +116,8 @@ class rBot():
         profile = self.req_obj.get(f"{self.base}/user/{self.bot_username}.json?limit={limit}")
         cm_bodies = profile.json()["data"]["children"]
         for cm_body in cm_bodies:
-            if cm_body["data"]["score"] <= -1:
+            if cm_body["data"]["score"] <= -2:
+                print("SİLİNDİ")
                 self.del_comment(cm_body["data"]["name"])
 
     def check_if_already(self, context, depth=2):
