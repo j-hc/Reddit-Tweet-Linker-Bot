@@ -5,13 +5,17 @@ import re
 from google.cloud import vision
 import os
 from info import gcloud_creds_path
+import enum
 
 os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = gcloud_creds_path
 client = vision.ImageAnnotatorClient()
 
-REASON_TOO_BIG = -2
-REASON_DEFAULT = -3
-REASON_NO_TEXT = -4
+
+class Reasons(enum.Enum):
+    TOO_BIG = -2
+    NO_TEXT = -4
+    DEFAULT = -3
+    NO_AT = -5
 
 
 def capture_tweet_arch(url):
@@ -46,8 +50,8 @@ def vision_ocr(picurl):
 def prep_text(text, need_at):
     try:
         split_loaded = text.split('\n')
-    except:
-        ret = {"result": "error", "reason": REASON_DEFAULT}
+    except:  # NoneType return from ocr
+        ret = {"result": "error", "reason": Reasons.DEFAULT}
         return ret
     i = 0
     at = ""
@@ -71,14 +75,14 @@ def prep_text(text, need_at):
             break
         ah = ah + 1
 
-    search_list = ' '.join(search_list).split(' ')
-    search_list = [x for x in search_list if '#' not in x and x]
+    search_list = ' '.join(search_list).split()
+    search_list = [x for x in search_list if '#' not in x and x]  # clear from hashtags and NoneTypes
     search_text = ' '.join(search_list)
     if not at:
         print("@username gozukmuyor")
         possible_at = [""]
         if need_at:
-            ret = {"result": "error", "reason": REASON_DEFAULT}
+            ret = {"result": "error", "reason": Reasons.NO_AT}
             return ret
     else:
         find_at = at.split('@')[1].split(' ')[0].strip()
@@ -109,14 +113,14 @@ def prep_text(text, need_at):
                     possible_at.append(find_at)
     if not search_text:
         print("no text")
-        ret = {"result": "error", "reason": REASON_NO_TEXT}
+        ret = {"result": "error", "reason": Reasons.NO_TEXT}
         return ret
 
     possibe_search_text = [search_text]
     #print(search_text)
-    search_text_splitted = search_text.split(' ')
-    search_text_splitted_2 = search_text.split(' ')
-    search_text_splitted_3 = search_text.split(' ')
+    search_text_splitted = search_text.split()
+    search_text_splitted_2 = search_text.split()
+    search_text_splitted_3 = search_text.split()
 
     split_by_at = search_text.split('@')
     if '@' in search_text and len(split_by_at[0].split()) > 1:
@@ -171,7 +175,7 @@ def twitter_search(possible_at, possibe_search_text, lang):
                 query = urllib.parse.quote(search_text_use + ' (from:{})'.format(at_dene))
             else:
                 query = urllib.parse.quote(search_text_use)
-            #print('tweet text: ' + search_text_use)
+            print('tweet text: ' + search_text_use)
             twit_search = 'https://mobile.twitter.com/search?q={}'.format(query)
             #print('search link: ' + twit_search)
             accept_lang_header = 'tr-TR,tr;q=0.5' if lang == 'tur' else 'en-US,en;q=0.5'

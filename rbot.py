@@ -5,7 +5,11 @@ from datetime import datetime
 import logging
 from http import cookiejar
 
+# Some stuff.. ------------------
 turkish_subs = ["turkey", "turkeyjerky", "testyapiyorum", "kgbtr"]
+bad_bot_strs = ["bad bot", "kotu bot", "kötü bot"]
+good_bot_strs = ["good bot", "iyi bot", "güzel bot", "cici bot"]
+# -------------------------------
 
 logging.basicConfig(level=logging.INFO, datefmt='%H:%M',
                     format='%(asctime)s, [%(filename)s:%(lineno)d] %(funcName)s(): %(message)s')
@@ -23,7 +27,7 @@ class rPostListing():
         js = child['data']
         self.commentid_full = self.linkid = js['name']
         sub = str(js['subreddit']).lower()
-        if sub in turkish_subs:  # #######tr subs
+        if sub in turkish_subs:
             self.lang_arg = 'tur'
         else:
             self.lang_arg = 'eng'
@@ -42,7 +46,7 @@ class rPost():
         self.body_lower = str(js['body']).lower()
         self.commentid_full = js['name']
         sub = str(js['subreddit']).lower()
-        if sub in turkish_subs:  # #######tr subs
+        if sub in turkish_subs:
             self.lang_arg = 'tur'
         else:
             self.lang_arg = 'eng'
@@ -60,6 +64,8 @@ class rPost():
 
 
 class rBot():
+    base = "https://oauth.reddit.com"
+
     def __init__(self, useragent, client_id, client_code, bot_username, bot_pass):
         self.useragent = useragent
         self.client_id = client_id
@@ -69,7 +75,7 @@ class rBot():
         self.already_answered = []
         self.checked_post = []
         self.req_obj = self.prep_session()
-        self.get_token()  # Fetch the token first
+        self.get_token()  # Fetch the token on instantioation (i cant spell for shit)
 
     def prep_session(self):
         req_obj = requests.Session()
@@ -84,15 +90,15 @@ class rBot():
                                        headers={"User-Agent": self.useragent})
         access_token = response_token.json()['access_token']
         logger.info('got new token: ' + access_token)
-        self.req_obj.headers.update({"Authorization": "bearer {0}".format(access_token)})
+        self.req_obj.headers.update({"Authorization": f"bearer {access_token}"})
 
     def del_comment(self, thingid):
-        self.req_obj.post("https://oauth.reddit.com/api/del", data={"id": thingid})
+        self.req_obj.post(f"{self.base}/api/del", data={"id": thingid})
         logger.info("comment removed")
 
     def send_reply(self, text, id_):
         data = {'api_type': 'json', 'return_rtjson': '1', 'text': text, "thing_id": id_}
-        rply_req = self.req_obj.post("https://oauth.reddit.com/api/comment", data=data)
+        rply_req = self.req_obj.post(f"{self.base}/api/comment", data=data)
         reply_s = rply_req.json()
         try:
             to_log = str(reply_s["json"]["errors"])
@@ -100,14 +106,14 @@ class rBot():
             sec_or_min = "min" if "minute" in to_log else "sec"
             num_in_err = int(''.join(list(filter(str.isdigit, to_log))))
             sleep_for = num_in_err + 5 if sec_or_min == "sec" else (num_in_err * 60) + 5
-            logger.info("sleeping for {}".format(sleep_for))
+            logger.info(f"sleeping for {sleep_for}")
             return sleep_for
         except:
             logger.info("message sent")
             return 0
 
     def check_last_comment_scores(self, limit=5):
-        profile = self.req_obj.get("https://oauth.reddit.com/user/{}.json?limit={}".format(self.bot_username, limit))
+        profile = self.req_obj.get(f"{self.base}/user/{self.bot_username}.json?limit={limit}")
         cm_bodies = profile.json()["data"]["children"]
         for cm_body in cm_bodies:
             if cm_body["data"]["score"] <= -1:
@@ -120,7 +126,7 @@ class rBot():
         if commentidfull in self.already_answered:
             return True
         self.already_answered.append(commentidfull)
-        comment_info_req = self.req_obj.get("https://oauth.reddit.com{0}?depth={1}".format(context, str(depth)))
+        comment_info_req = self.req_obj.get(f"{self.base}{context}?depth={depth}")
         try:
             authors = comment_info_req.json()[1]['data']['children'][0]['data']['replies']['data']['children']
         except:
@@ -138,7 +144,7 @@ class rBot():
         if linkid in self.checked_post:
             return True
         self.checked_post.append(linkid)
-        comment_info_req = self.req_obj.get("https://oauth.reddit.com/comments/{}/.json".format(linkid.split('_')[1]))
+        comment_info_req = self.req_obj.get(f"{self.base}/comments/{linkid.split('_')[1]}/.json")
         for reply in comment_info_req.json()[1]["data"]["children"]:
             if reply["data"]["author"] == self.bot_username:
                 return True
@@ -147,7 +153,7 @@ class rBot():
     def check_inbox(self):
         childrentime = None
         while childrentime is None:
-            response_inbox = self.req_obj.get("https://oauth.reddit.com/message/inbox.json")
+            response_inbox = self.req_obj.get(f"{self.base}/message/inbox.json")
             if response_inbox.json().get("error"):
                 return "tokenal"
             try:
@@ -175,17 +181,17 @@ class rBot():
                 return toanswer
             elif new_notif.ptype == "comment_reply":
                 # BAD BOT
-                if any(x in new_notif.body_lower for x in ["bad bot", "kotu bot", "kötü bot"]):
+                if any(x in new_notif.body_lower for x in bad_bot_strs):
                     toanswer = {"notif": new_notif, "type": "badbot"}
                     return toanswer
                 # GOOD BOT
-                elif any(x in new_notif.body_lower for x in ["good bot", "iyi bot"]):
+                elif any(x in new_notif.body_lower for x in good_bot_strs):
                     toanswer = {"notif": new_notif, "type": "goodbot"}
                     return toanswer
 
     def fetch_subreddit_posts(self, subs, count):
         for sub in subs:
-            posts = self.req_obj.get(f"https://oauth.reddit.com/r/{sub}/new.json?limit={str(count)}")
+            posts = self.req_obj.get(f"{self.base}/r/{sub}/new.json?limit={str(count)}")
             rtt = posts.json()["data"]["children"]
             for rt in rtt:
                 yield rt

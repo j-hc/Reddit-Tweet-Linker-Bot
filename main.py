@@ -121,7 +121,7 @@ def searching(to_answer_q, to_reply_q):
                 print("not a tweet: " + postobj.linkid)
                 continue
             else:
-                if prepped_text.get("reason") == REASON_NO_TEXT:
+                if prepped_text.get("reason") == Reasons.NO_TEXT:
                     reason = l_res["reason_notext"]
                 else:
                     reason = l_res["reason_default"]
@@ -140,12 +140,12 @@ if __name__ == "__main__":
     to_answer_q = queue.Queue()
     to_reply_q = queue.Queue()
     checking_t = threading.Thread(target=check_notifs, args=(to_answer_q,), daemon=True)
-    answering_t = threading.Thread(target=searching, args=(to_answer_q, to_reply_q), daemon=True)
+    searching_t = threading.Thread(target=searching, args=(to_answer_q, to_reply_q), daemon=True)
     replier_t = threading.Thread(target=replier, args=(to_reply_q,), daemon=True)
     sub_listener = threading.Thread(target=sub_feed_checking, args=(to_answer_q,), daemon=True)
 
     checking_t.start()
-    answering_t.start()
+    searching_t.start()
     sub_listener.start()
     replier_t.start()
 
