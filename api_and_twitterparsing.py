@@ -2,13 +2,9 @@ import requests
 from bs4 import BeautifulSoup
 import urllib.parse
 import re
-from google.cloud import vision
-import os
-from info import gcloud_creds_path
+from info import vision_api_key
 import enum
-
-os.environ["GOOGLE_APPLICATION_CREDENTIALS"] = gcloud_creds_path
-client = vision.ImageAnnotatorClient()
+from time import sleep
 
 
 class Reasons(enum.Enum):
@@ -34,26 +30,19 @@ def is_exist_twitter(username):
     else:
         return False
 
-
 def vision_ocr(picurl):
-    response = None
-    while response is None:
-        response = client.annotate_image({
-            'image': {'source': {'image_uri': picurl}},
-            'features': [{'type': vision.enums.Feature.Type.TEXT_DETECTION}],
-        })
-        txt = response.text_annotations[0].description
-    print(txt)
+    params = {"key": vision_api_key, "fields": "responses.fullTextAnnotation.text"}
+    data = {"requests": [{"image": {"source": {"image_uri": picurl}}, "features": [{"type": "TEXT_DETECTION"}]}]}
+    response = requests.post("https://vision.googleapis.com/v1/images:annotate", params=params, data=data)
+    txt = response.json()["fullTextAnnotation"][0]["text"]
     return txt
 
 
 def prep_text(text, need_at):
-    try:
-        split_loaded = text.split('\n')
-    except:  # NoneType return from ocr
-        ret = {"result": "error", "reason": Reasons.DEFAULT}
+    if not text:
+        ret = {"result": "error", "reason": Reasons.NO_AT}
         return ret
-
+    split_loaded = text.split('\n')
     at = None
     below_this = None
     for at_dnm in range(len(split_loaded) - 1, 0, -1):
@@ -61,11 +50,11 @@ def prep_text(text, need_at):
                 "yanıt olarak" in split_loaded[at_dnm] or "Replying to" in split_loaded[at_dnm]
                 or "yanit olarak" in split_loaded[at_dnm]):
             below_this = at_dnm + 1
-            continue
             """at_re = re.search(r'@([A-Za-z0-9_]+)', split_loaded[at_dnm - 1])
             if at_re:
                 at = at_re.group(0).replace("@", "")
                 break"""
+            continue
         else:
             at_re = re.search(r'@([A-Za-z0-9_]+)', split_loaded[at_dnm])
             if at_re:
@@ -73,14 +62,17 @@ def prep_text(text, need_at):
                 break
     else:
         at_dnm = 0
-    at_dnm += 1
+
     y = ['Twitter for', 'Translate Tweet', 'Twitter Web App', 'PM - ', '20 - ', '19 - ', 'for iOS', 'for Android',
          ' Beğeni ']
     search_list = []
-    if below_this:
+    if below_this:  # IF REPLY FOUND
         ah = below_this
-    else:
+    elif at_dnm == 0:  # IF AT NOT FOUND
+        ah = at_dnm
+    else:  # IF AT FOUND
         ah = at_dnm + 1
+
     for s in split_loaded[ah:len(split_loaded)]:
         if not any(yasak in s for yasak in y):
             if (len(s) > 13 or '@' in s) and ah >= at_dnm:

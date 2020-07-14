@@ -114,8 +114,12 @@ def searching(to_answer_q, to_reply_q):
                     elif not atliatsiz:
                         messagetxt += l_res["success"].format(username, twitlink) + "\r\n\n" + \
                                       l_res["archive_info"].format(backup_link)
+                elif postobj.listing:
+                    print("not a tweet: " + postobj.linkid)
+                    continue
                 elif search_twitter.get("reason") == Reasons.DEFAULT:
                     reason = l_res["reason_default"]
+
             elif postobj.listing:
                 print("not a tweet: " + postobj.linkid)
                 continue
@@ -153,9 +157,9 @@ if __name__ == "__main__":
     searching_t.start()
     sub_listener.start()
     replier_t.start()
-    score_listener.start()
+    #score_listener.start()
 
     while True:
         print(f"\033[4msearching jobs: {[search['notif'] for search in list(to_answer_q.queue)]}\033[0m")
         print(f"\033[4mreplying jobs: {[replyy['thing'] for replyy in list(to_reply_q.queue)]}\033[0m")
-        sleep(9)
+        sleep(13)

@@ -117,7 +117,6 @@ class rBot():
         cm_bodies = profile.json()["data"]["children"]
         for cm_body in cm_bodies:
             if cm_body["data"]["score"] <= -2:
-                print("SİLİNDİ")
                 self.del_comment(cm_body["data"]["name"])
 
     def check_if_already(self, context, depth=2):
