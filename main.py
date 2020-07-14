@@ -6,7 +6,7 @@ from time import sleep
 import queue
 import threading
 
-subs_listening = ["testyapiyorum", "turkey"]
+subs_listening = ["svihs", "turkey"]
 
 
 def is_img_post(jsurl):
@@ -136,7 +136,6 @@ def searching(to_answer_q, to_reply_q):
 
 if __name__ == "__main__":
     twitterlinker = rBot(useragent, client_id, client_code, bot_username, bot_pass)
-    twitterlinker.get_token()
 
     to_answer_q = queue.Queue()
     to_reply_q = queue.Queue()

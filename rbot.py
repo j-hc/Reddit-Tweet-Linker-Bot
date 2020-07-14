@@ -42,7 +42,7 @@ class rPost():
         self.body_lower = str(js['body']).lower()
         self.commentid_full = js['name']
         sub = str(js['subreddit']).lower()
-        if sub == "turkey" or sub == "turkeyjerky" or sub == "testyapiyorum":  # #######tr subs
+        if sub in turkish_subs:  # #######tr subs
             self.lang_arg = 'tur'
         else:
             self.lang_arg = 'eng'
@@ -69,6 +69,7 @@ class rBot():
         self.already_answered = []
         self.checked_post = []
         self.req_obj = self.prep_session()
+        self.get_token()  # Fetch the token first
 
     def prep_session(self):
         req_obj = requests.Session()
@@ -113,7 +114,7 @@ class rBot():
                 self.del_comment(cm_body["data"]["name"])
 
     def check_if_already(self, context, depth=2):
-        if len(self.already_answered) > 35:
+        if len(self.already_answered) > 50:
             self.already_answered = []  # lets not overflow :)
         commentidfull = "t1_" + context.split('/')[-2]
         if commentidfull in self.already_answered:
@@ -132,7 +133,7 @@ class rBot():
         return False
 
     def check_if_already_post(self, linkid):
-        if len(self.checked_post) > 35:
+        if len(self.checked_post) > 50:
             self.checked_post = []
         if linkid in self.checked_post:
             return True
