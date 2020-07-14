@@ -166,6 +166,8 @@ class rBot():
         time_unix = time.mktime(t.timetuple())
 
         for child in childrentime:
+            if child["kind"] == "t4":
+                continue
             new_notif = rPost(child)
             if new_notif.created_utc < int(time_unix) - 4000:
                 logger.info('nothing new')

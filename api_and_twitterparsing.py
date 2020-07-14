@@ -36,15 +36,14 @@ def is_exist_twitter(username):
 
 
 def vision_ocr(picurl):
-    response = client.annotate_image({
-        'image': {'source': {'image_uri': picurl}},
-        'features': [{'type': vision.enums.Feature.Type.TEXT_DETECTION}],
-    })
-    try:
+    response = None
+    while response is None:
+        response = client.annotate_image({
+            'image': {'source': {'image_uri': picurl}},
+            'features': [{'type': vision.enums.Feature.Type.TEXT_DETECTION}],
+        })
         txt = response.text_annotations[0].description
-    except:
-        print("aaaaaaaaaaaaaaaaaaaaaaaaaaaa")
-        txt = None
+    print(txt)
     return txt
 
 
@@ -56,12 +55,17 @@ def prep_text(text, need_at):
         return ret
 
     at = None
+    below_this = None
     for at_dnm in range(len(split_loaded) - 1, 0, -1):
-        if "adlı kişiye yanıt olarak" in split_loaded[at_dnm] or "Replying to @" in split_loaded[at_dnm]:
-            at_re = re.search(r'@([A-Za-z0-9_]+)', split_loaded[at_dnm - 1])
+        if "@" in split_loaded[at_dnm] and (
+                "yanıt olarak" in split_loaded[at_dnm] or "Replying to" in split_loaded[at_dnm]
+                or "yanit olarak" in split_loaded[at_dnm]):
+            below_this = at_dnm + 1
+            continue
+            """at_re = re.search(r'@([A-Za-z0-9_]+)', split_loaded[at_dnm - 1])
             if at_re:
                 at = at_re.group(0).replace("@", "")
-                break
+                break"""
         else:
             at_re = re.search(r'@([A-Za-z0-9_]+)', split_loaded[at_dnm])
             if at_re:
@@ -73,8 +77,11 @@ def prep_text(text, need_at):
     y = ['Twitter for', 'Translate Tweet', 'Twitter Web App', 'PM - ', '20 - ', '19 - ', 'for iOS', 'for Android',
          ' Beğeni ']
     search_list = []
-    ah = at_dnm
-    for s in split_loaded[at_dnm:len(split_loaded)]:
+    if below_this:
+        ah = below_this
+    else:
+        ah = at_dnm + 1
+    for s in split_loaded[ah:len(split_loaded)]:
         if not any(yasak in s for yasak in y):
             if (len(s) > 13 or '@' in s) and ah >= at_dnm:
                 search_list.append(s.strip())
@@ -108,10 +115,6 @@ def prep_text(text, need_at):
                     find_at3 = find_at.replace('I', 'l')
                     if is_exist_twitter(find_at3):
                         possible_at.append(find_at3)
-                """for _ in range(0, round(len(find_at) * 1 / 3)):
-                    find_at = find_at[:-1]
-                    if is_exist_twitter(find_at):
-                        possible_at.append(find_at)"""
     if not search_text:
         print("no text")
         ret = {"result": "error", "reason": Reasons.NO_TEXT}
@@ -123,7 +126,7 @@ def prep_text(text, need_at):
     search_text_splitted_2 = search_text.split()
     search_text_splitted_3 = search_text.split()
 
-    split_by_at = search_text.split('@')
+    """split_by_at = search_text.split('@')
     if '@' in search_text and len(split_by_at[0].split()) > 1:
         news = split_by_at[0].strip()
         possibe_search_text.append(news)
@@ -133,7 +136,7 @@ def prep_text(text, need_at):
                 news.pop()
                 possibe_search_text.append(" ".join(news))
             else:
-                break
+                break"""
 
     for _ in range(0, round(len(search_text_splitted_2) * 3 / 5)):
         search_text_splitted_2.pop(-1)
@@ -171,7 +174,7 @@ def prep_text(text, need_at):
 def twitter_search(possible_at, possibe_search_text, lang):
     for at_dene in possible_at:
         for search_text_use in possibe_search_text:
-            if len(search_text_use.split()) > 50:
+            if len(search_text_use.split()) > 50:  # too long for twitter search
                 continue
             if at_dene:
                 print('twitter username: ' + at_dene)
@@ -207,5 +210,5 @@ def twitter_search(possible_at, possibe_search_text, lang):
             return_dic = {"result": "success", "username": tweeter, "twitlink": tweetlink, "atliatsiz": atsiz}
             return return_dic
 
-    ret = {"result": "error"}
+    ret = {"result": "error", "reason": Reasons.DEFAULT}
     return ret

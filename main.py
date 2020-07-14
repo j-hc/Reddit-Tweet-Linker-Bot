@@ -114,17 +114,15 @@ def searching(to_answer_q, to_reply_q):
                     elif not atliatsiz:
                         messagetxt += l_res["success"].format(username, twitlink) + "\r\n\n" + \
                                       l_res["archive_info"].format(backup_link)
-                else:
-                    print("cogh garip")
-                    continue
+                elif search_twitter.get("reason") == Reasons.DEFAULT:
+                    reason = l_res["reason_default"]
             elif postobj.listing:
                 print("not a tweet: " + postobj.linkid)
                 continue
+            elif prepped_text.get("reason") == Reasons.NO_TEXT:
+                reason = l_res["reason_notext"]
             else:
-                if prepped_text.get("reason") == Reasons.NO_TEXT:
-                    reason = l_res["reason_notext"]
-                else:
-                    reason = l_res["reason_default"]
+                reason = l_res["reason_default"]
 
         if reason:
             messagetxt += l_res["because"].format(reason)

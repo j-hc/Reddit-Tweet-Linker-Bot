@@ -11,7 +11,7 @@ en = {"introduction": "Im a bot and I find links to the twitter screenshots.",
 
       "reason_toobig": "image is bigger than 1MB",
       "reason_notext": "i cant see a text",
-      "reason_default": "*shrugs*",
+      "reason_default": r"\*shrugs\*",
       "no_image_err": "this post has no image"
       }
 
@@ -29,6 +29,6 @@ tr = {"introduction": "ben bir botum ve tweet screenshotlarının linklerini bul
 
       "reason_toobig": "görüntü boyutu çok büyük(>1MB)",
       "reason_notext": "görüntüde yazı yok",
-      "reason_default": "*shrugs*",
+      "reason_default": r"\*shrugs\*",
       "no_image_err": "bu postta görsel yok"
       }
