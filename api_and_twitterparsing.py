@@ -5,6 +5,7 @@ import re
 from info import vision_api_key
 import enum
 from time import sleep
+import json
 
 
 class Reasons(enum.Enum):
@@ -32,9 +33,9 @@ def is_exist_twitter(username):
 
 def vision_ocr(picurl):
     params = {"key": vision_api_key, "fields": "responses.fullTextAnnotation.text"}
-    data = {"requests": [{"image": {"source": {"image_uri": picurl}}, "features": [{"type": "TEXT_DETECTION"}]}]}
-    response = requests.post("https://vision.googleapis.com/v1/images:annotate", params=params, data=data)
-    txt = response.json()["fullTextAnnotation"][0]["text"]
+    data = json.dumps({"requests": [{"image": {"source": {"image_uri": picurl}}, "features": [{"type": "TEXT_DETECTION"}]}]})
+    response = requests.post("https://vision.googleapis.com/v1/images:annotate", data=data, params=params)
+    txt = response.json()['responses'][0]["fullTextAnnotation"]["text"]
     return txt
 
 
