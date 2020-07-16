@@ -1,7 +1,4 @@
 Tweet Linker for Reddit
 ==============
 
-a pretty basic scraper for performing twitter searchs with help of an OCR API
-and of course wired to reddit api
-
-	
+A Twitter screenshot linker with Twitter scraping, empowered with Vision Cloud OCR and wired to Reddit API

@@ -4,15 +4,26 @@ import urllib.parse
 import re
 from info import vision_api_key
 import enum
-from time import sleep
 import json
+import base64
+
+# Some stuff.. ------------------
+replying_to = ["antwort an", "replying to", "yanıt olarak", "yanit olarak", "svar till"]
+# -------------------------------
 
 
 class Reasons(enum.Enum):
-    TOO_BIG = -2
-    NO_TEXT = -4
-    DEFAULT = -3
-    NO_AT = -5
+    NO_TEXT = -1
+    DEFAULT = -2
+    NO_AT = -3
+    NO_IMG = -4
+    ACCOUNT_SUSPENDED = -5
+
+
+class TWStatus(enum.Enum):
+    OK = 1
+    SUSPENDED = 2
+    DNE = 3
 
 
 def capture_tweet_arch(url):
@@ -27,53 +38,54 @@ def capture_tweet_arch(url):
 def is_exist_twitter(username):
     pagec = requests.get(f"https://mobile.twitter.com/{username}", allow_redirects=False, cookies={'m5': 'off'})
     if pagec.status_code == 200:  # OK
-        return True
-    else:
-        return False
+        return TWStatus.OK
+    elif pagec.status_code == 307:
+        return TWStatus.SUSPENDED
+    elif pagec.status_code == 404:
+        return TWStatus.DNE
+
 
 def vision_ocr(picurl):
     params = {"key": vision_api_key, "fields": "responses.fullTextAnnotation.text"}
-    data = json.dumps({"requests": [{"image": {"source": {"image_uri": picurl}}, "features": [{"type": "TEXT_DETECTION"}]}]})
-    response = requests.post("https://vision.googleapis.com/v1/images:annotate", data=data, params=params)
-    txt = response.json()['responses'][0]["fullTextAnnotation"]["text"]
+    #data = json.dumps({"requests": [{"image": {"source": {"image_uri": picurl}}, "features": [{"type": "TEXT_DETECTION"}]}]})
+    img_bytes = requests.get(picurl).content
+    bss = base64.b64encode(img_bytes)
+    data = json.dumps({"requests": [{"image": {"content": bss.decode()}, "features": [{"type": "TEXT_DETECTION"}]}]})
+    response = requests.post("https://vision.googleapis.com/v1/images:annotate", data=data, params=params).json()
+    if bool(response['responses'][0]):
+        txt = response['responses'][0]["fullTextAnnotation"]["text"]
+    else:
+        txt = None
     return txt
 
 
 def prep_text(text, need_at):
-    if not text:
-        ret = {"result": "error", "reason": Reasons.NO_AT}
-        return ret
-    split_loaded = text.split('\n')
+    split_loaded = text.strip().split('\n')
     at = None
     below_this = None
-    for at_dnm in range(len(split_loaded) - 1, 0, -1):
-        if "@" in split_loaded[at_dnm] and (
-                "yanıt olarak" in split_loaded[at_dnm] or "Replying to" in split_loaded[at_dnm]
-                or "yanit olarak" in split_loaded[at_dnm]):
+    for at_dnm in range(len(split_loaded) - 1, -1, -1):
+        at_dnm_txt = str(split_loaded[at_dnm])
+        # print(at_dnm_txt)
+        at_dnm_txt_low = at_dnm_txt.lower()
+        if "@" in at_dnm_txt and any(yasak in at_dnm_txt_low for yasak in replying_to):
             below_this = at_dnm + 1
-            """at_re = re.search(r'@([A-Za-z0-9_]+)', split_loaded[at_dnm - 1])
-            if at_re:
-                at = at_re.group(0).replace("@", "")
-                break"""
-            continue
         else:
-            at_re = re.search(r'@([A-Za-z0-9_]+)', split_loaded[at_dnm])
+            at_re = re.search(r'@([A-Za-z0-9_]+)', at_dnm_txt)
             if at_re:
-                at = at_re.group(0).replace("@", "")
+                at = at_re.group(1)
                 break
-    else:
+    if not at:
         at_dnm = 0
 
     y = ['Twitter for', 'Translate Tweet', 'Twitter Web App', 'PM - ', '20 - ', '19 - ', 'for iOS', 'for Android',
-         ' Beğeni ']
+         'pm ·', 'am ·', ' Translate from ']
     search_list = []
     if below_this:  # IF REPLY FOUND
         ah = below_this
-    elif at_dnm == 0:  # IF AT NOT FOUND
+    elif not at:  # IF AT NOT FOUND
         ah = at_dnm
     else:  # IF AT FOUND
         ah = at_dnm + 1
-
     for s in split_loaded[ah:len(split_loaded)]:
         if not any(yasak in s for yasak in y):
             if (len(s) > 13 or '@' in s) and ah >= at_dnm:
@@ -94,12 +106,16 @@ def prep_text(text, need_at):
     else:
         find_at = at
         possible_at = [""]
-        if '...' in find_at or not len(find_at) >= 5:
+        if '...' in find_at or len(find_at) < 5:
             possible_at = [""]
         else:
-            if is_exist_twitter(find_at):
+            account_status = is_exist_twitter(find_at)
+            if account_status == TWStatus.OK:
                 possible_at = [find_at]
-            else:
+            elif account_status == TWStatus.SUSPENDED:
+                ret = {"result": "error", "reason": Reasons.ACCOUNT_SUSPENDED}
+                return ret
+            elif account_status == TWStatus.DNE:
                 if 'l' in find_at:
                     find_at2 = find_at.replace('l', 'I')
                     if is_exist_twitter(find_at2):
@@ -131,30 +147,33 @@ def prep_text(text, need_at):
             else:
                 break"""
 
-    for _ in range(0, round(len(search_text_splitted_2) * 3 / 5)):
+    for _ in range(0, round(len(search_text_splitted_2) * 0.6)):
         search_text_splitted_2.pop(-1)
-        possibe_search_text.append(" ".join(search_text_splitted_2))
-    for _ in range(0, round(len(search_text_splitted_3) * 3 / 5)):
+        if len(search_text_splitted_2) < 50:
+            possibe_search_text.append(" ".join(search_text_splitted_2))
+    for _ in range(0, round(len(search_text_splitted_3) * 0.6)):
         search_text_splitted_3.pop(0)
-        possibe_search_text.append(" ".join(search_text_splitted_3))
+        if len(search_text_splitted_3) < 50:
+            possibe_search_text.append(" ".join(search_text_splitted_3))
     oss = 1
-    while len(search_text_splitted) > 3:
+    lnn = len(search_text_splitted) * 0.5
+    while len(search_text_splitted) > lnn:
         oss = oss + 1
         if oss % 2 == 0:
             search_text_splitted.pop(-1)
             to_app = " ".join(search_text_splitted)
-            if to_app not in possibe_search_text:
+            if to_app not in possibe_search_text and len(search_text_splitted) < 50:
                 possibe_search_text.append(to_app)
         else:
             search_text_splitted.pop(0)
             to_app = " ".join(search_text_splitted)
-            if to_app not in possibe_search_text:
+            if to_app not in possibe_search_text and len(search_text_splitted) < 50:
                 possibe_search_text.append(to_app)
 
-    temp = search_text.split(' ')
+    temp = search_text.split()
     new2 = ' '.join(s for s in temp if not any(c.isdigit() for c in s))
     ekle = new2.strip()
-    if ekle not in possibe_search_text:
+    if ekle not in possibe_search_text and len(ekle.split()) < 50:
         possibe_search_text.append(ekle)
     # print("possible at's: ", end="")
     # print(possible_at)
@@ -167,8 +186,6 @@ def prep_text(text, need_at):
 def twitter_search(possible_at, possibe_search_text, lang):
     for at_dene in possible_at:
         for search_text_use in possibe_search_text:
-            if len(search_text_use.split()) > 50:  # too long for twitter search
-                continue
             if at_dene:
                 print('twitter username: ' + at_dene)
                 query = urllib.parse.quote(search_text_use + ' (from:{})'.format(at_dene))

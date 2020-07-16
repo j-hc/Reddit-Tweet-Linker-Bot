@@ -1,165 +1,229 @@
 from api_and_twitterparsing import *
-from rbot import rBot, rPostListing
+from rBot import rBot
 from info import useragent, client_id, client_code, bot_username, bot_pass
 from strings import tr, en
 from time import sleep
 import queue
 import threading
+from rUtils import check_if_already_post, is_img_post, fetch_post_from_notif, fetch_subreddit_posts
+import enum
+from collections import namedtuple
 
+# Some stuff.. ------------------
+bad_bot_strs = ["bad bot", "kotu bot", "kötü bot"]
+good_bot_strs = ["good bot", "iyi bot", "güzel bot", "cici bot"]
 subs_listening = ["svihs", "turkey"]
+score_listener_interval = 130
+sub_feed_listener_interval = 30
+notif_listener_interval = 10
 
 
-def is_img_post(jsurl):
-    if not jsurl['data'].get("is_self"):
-        if str(jsurl['data']['url']).split(".")[-1].lower() in ["jpg", "jpeg", "png", "tiff", "bmp"]:
-            return True
-        else:
-            return False
-    else:
-        return False
+# -------------------------------
 
 
-def replier(to_reply_q):
-    while True:
-        to_reply = to_reply_q.get()
-        replied = twitterlinker.send_reply(to_reply["text"], to_reply["thing"])
-        if replied != 0:
-            to_reply_q.put(to_reply)
-            sleep(replied)
+class JobType(enum.Enum):
+    normal = 1
+    listing = 2
+    goodbot = 3
+    badbot = 4
 
 
-def sub_feed_checking(to_answer_q):
-    # SUBREDDIT FEED CHECK
-    while True:
-        last_submissions = twitterlinker.fetch_subreddit_posts(subs_listening, 2)
-        for last_submission in last_submissions:
-            curr_post = rPostListing(last_submission)
-            if not twitterlinker.check_if_already_post(curr_post.commentid_full):
-                if is_img_post(last_submission):
-                    to_answer_q.put({"notif": curr_post, "type": "normal"})
-                    print("sub feed checker: " + curr_post.commentid_full)
-                else:
-                    print("thiss not pic: " + curr_post.commentid_full)
-            else:
-                print("already: " + curr_post.commentid_full, end=' | ')
-        print()
-        sleep(30)
-
-
-def check_notifs(to_answer_q):
-    while True:
-        # INBOX CHECK
-        inbox = twitterlinker.check_inbox()
-        if inbox:
-            if inbox == "tokenal":
-                twitterlinker.get_token()
-            else:
-                post_obj = inbox
-                print('inbox checkr: ' + post_obj["notif"].commentid_full)
-                to_answer_q.put(post_obj)
-        sleep(12)
-
-
-def searching(to_answer_q, to_reply_q):
-    while True:
-        postobj = to_answer_q.get()
-        if postobj["notif"].lang_arg == "tur":
-            l_res = tr
-        else:
-            l_res = en
-
-        if postobj["type"] == "badbot":
-            print("bad bot")
-            to_reply_q.put({"text": l_res["badbot"], "thing": postobj["notif"].commentid_full})
-            continue
-        elif postobj["type"] == "goodbot":
-            print("good bot")
-            to_reply_q.put({"text": l_res["goodbot"], "thing": postobj["notif"].commentid_full})
-            continue
-        else:
-            # NOT A COMMENT_REPLY
-            postobj = postobj["notif"]
-        response = requests.get('https://www.reddit.com/{}/.json'.format(postobj.linkid.split('_')[1]),
-                                headers={"User-Agent": useragent})
-        jsurl = response.json()[0]['data']['children'][0]
-        if postobj.custom:
-            pic = postobj.custom
-        else:
-            pic = jsurl['data']['url']
-
-        messagetxt = l_res["hello"].format(postobj.summoner) + "\r\n" + l_res["introduction"] + "\r\n"
-        reason = None
-        need_at = False if postobj.listing is False else True
-        if not is_img_post(jsurl):
-            print('text post')
-            reason = "\r\n" + l_res["no_image_err"]
-        else:
-            textt = vision_ocr(pic)
-            prepped_text = prep_text(textt, need_at=need_at)
-            if prepped_text.get("result") == "success":
-                possible_at = prepped_text.get("possible_at")
-                possibe_search_text = prepped_text.get("possibe_search_text")
-
-                search_twitter = twitter_search(possible_at, possibe_search_text, postobj.lang_arg)
-                if search_twitter.get("result") == "success":
-                    username = search_twitter.get("username")
-                    twitlink = search_twitter.get("twitlink")
-                    atliatsiz = search_twitter.get("atliatsiz")
-
-                    print("getting backup archive")
-                    backup_link = capture_tweet_arch(twitlink)
-
-                    if atliatsiz:
-                        messagetxt += l_res["couldnt_find_at"].format(username, twitlink)
-                    elif not atliatsiz:
-                        messagetxt += l_res["success"].format(username, twitlink) + "\r\n\n" + \
-                                      l_res["archive_info"].format(backup_link)
-                elif postobj.listing:
-                    print("not a tweet: " + postobj.linkid)
-                    continue
-                elif search_twitter.get("reason") == Reasons.DEFAULT:
-                    reason = l_res["reason_default"]
-
-            elif postobj.listing:
-                print("not a tweet: " + postobj.linkid)
-                continue
-            elif prepped_text.get("reason") == Reasons.NO_TEXT:
-                reason = l_res["reason_notext"]
-            else:
-                reason = l_res["reason_default"]
-
-        if reason:
-            messagetxt += l_res["because"].format(reason)
-        messagetxt += l_res["outro"]
-
-        to_reply_q.put({"text": messagetxt, "thing": postobj.commentid_full})
-        print('search DONE: ' + postobj.commentid_full)
+twJob = namedtuple('twJob', 'to_answer the_post jtype lang')
+replyJob = namedtuple('replyJob', 'text thing')
 
 
 def score_listener():
     while True:
-        twitterlinker.check_last_comment_scores()
-        sleep(150)
+        scores = twitterlinker.check_last_comment_scores(limit=5)
+        for score_j in scores:
+            score = score_j["data"]["score"]
+            if score <= -2:
+                twitterlinker.del_comment(score_j["data"]["name"])
+        sleep(score_listener_interval)
+
+
+def sub_feed_listener(job_q):
+    # SUBREDDIT FEED CHECK
+    checked_posts = []
+    while True:
+        last_submissions = fetch_subreddit_posts(subs_listening, limit=2)
+        for last_submission in last_submissions:
+            if not check_if_already_post(last_submission, checked_posts, twitterlinker.bot_username):
+                if is_img_post(last_submission):
+                    job = twJob(to_answer=last_submission, the_post=last_submission, jtype=JobType.listing,
+                                lang=last_submission.lang)
+                    job_q.put(job)
+                    print("(SFC)maybe a job: " + last_submission.id_ + " from " + last_submission.subreddit)
+                else:
+                    print("(SFC)this's not a pic: " + last_submission.id_ + " from " + last_submission.subreddit)
+            else:
+                print("(SFC)already: " + last_submission.id_, end=' |')
+        print()
+        sleep(sub_feed_listener_interval)
+
+
+def notif_listener(job_q):
+    # INBOX CHECK
+    while True:
+        notifs = twitterlinker.check_inbox()
+        for notif in notifs:
+            job = notif_job_builder(notif)
+            if job != -1:
+                print(f"inbox checker: {notif.post_id} from {notif.subreddit}")
+                job_q.put(job)
+        sleep(notif_listener_interval)
+
+
+def reply_worker(reply_q):
+    while True:
+        to_reply = reply_q.get(block=True)
+        answer2 = to_reply.thing
+        text = to_reply.text
+        print("answer2: " + answer2.id_)
+        print(text)
+        replied = twitterlinker.send_reply(text=text, thing=answer2)
+        if replied != 0:
+            reply_q.put(to_reply)
+            sleep(replied)
+
+
+def job_handler(job_q, reply_q):
+    while True:
+        twjob = job_q.get(block=True)
+        jtype = twjob.jtype
+        post = twjob.the_post
+        lang = twjob.lang
+        answer2 = twjob.to_answer
+
+        reply_built = reply_builder(lang=lang, post=post, jtype=jtype, author=answer2.author)
+        if reply_built:
+            reply_job = replyJob(text=reply_built, thing=answer2)
+            reply_q.put(reply_job)
+            print('search DONE: ', post.id_)
+
+
+def reply_builder(lang, post, jtype, author):
+    l_res = tr if lang == "tur" else en
+    if jtype == JobType.listing and is_img_post(post):
+        messagetxt = "\r\n" + l_res["introduction"] + "\r\n"
+        textt = vision_ocr(post.url)
+        if textt:
+            prepped_text = prep_text(textt, need_at=True)
+            prepped_text_result = prepped_text.get("result")
+            if prepped_text_result == "success":
+                possible_at = prepped_text.get("possible_at")
+                possibe_search_text = prepped_text.get("possibe_search_text")
+                search_twitter = twitter_search(possible_at, possibe_search_text, post.lang)
+                search_twitter_result = search_twitter.get("result")
+                if search_twitter_result == "success":
+                    username = search_twitter.get("username")
+                    twitlink = search_twitter.get("twitlink")
+                    print("getting backup archive")
+                    backup_link = capture_tweet_arch(twitlink)
+                    messagetxt += l_res["success"].format(username, twitlink) + "\r\n\n" + l_res["archive_info"].format(backup_link)
+        print("prolly not a tweet: " + post.id_)
+        return None
+
+    elif jtype == JobType.normal:
+        messagetxt = l_res["hello"].format(author) + l_res["introduction"] + "\r\n"
+        if is_img_post(post):
+            textt = vision_ocr(post.url)
+            if textt:
+                prepped_text = prep_text(textt, need_at=False)
+                prepped_text_result = prepped_text.get("result")
+                if prepped_text_result == "success":
+                    possible_at = prepped_text.get("possible_at")
+                    possibe_search_text = prepped_text.get("possibe_search_text")
+                    search_twitter = twitter_search(possible_at, possibe_search_text, post.lang)
+                    search_twitter_result = search_twitter.get("result")
+                    if search_twitter_result == "success":
+                        username = search_twitter.get("username")
+                        twitlink = search_twitter.get("twitlink")
+                        atliatsiz = search_twitter.get("atliatsiz")
+
+                        print("getting backup archive")
+                        backup_link = capture_tweet_arch(twitlink)
+
+                        if atliatsiz:
+                            messagetxt += l_res["couldnt_find_at"].format(username, twitlink)
+                        elif not atliatsiz:
+                            messagetxt += l_res["success"].format(username, twitlink) + "\r\n\n" + \
+                                          l_res["archive_info"].format(backup_link)
+
+                    elif search_twitter_result == "error":
+                        reason_enum = search_twitter.get("reason")
+                        if reason_enum == Reasons.NO_TEXT:
+                            reason_txt = l_res["reason_default"]
+                        else:
+                            reason_txt = l_res["reason_default"]
+                        messagetxt += l_res["because"].format(reason_txt)
+
+                elif prepped_text_result == "error":
+                    reason_enum = prepped_text.get("reason")
+                    if reason_enum == Reasons.NO_TEXT:
+                        reason_txt = l_res["reason_notext"]
+                    elif reason_enum == Reasons.NO_AT:
+                        reason_txt = l_res["reason_notext"]
+                    elif reason_enum == Reasons.ACCOUNT_SUSPENDED:
+                        reason_txt = l_res["reason_accountsuspended"]
+                    else:
+                        reason_txt = l_res["reason_default"]
+                    messagetxt += l_res["because"].format(reason_txt)
+
+            else:  # NO TEXT
+                reason_txt = l_res["reason_notext"]
+                messagetxt += l_res["because"].format(reason_txt)
+        else:  # NOT IMG POST
+            print('called onto a text post')
+            reason_txt = "\r\n" + l_res["no_image_err"]
+            messagetxt += l_res["because"].format(reason_txt)
+        messagetxt += l_res["outro"]
+    elif jtype == JobType.badbot:
+        print("bad bot")
+        messagetxt = l_res["badbot"]
+    elif jtype == JobType.goodbot:
+        print("good bot")
+        messagetxt = l_res["goodbot"]
+    return messagetxt
+
+
+def notif_job_builder(notif):
+    if notif.kind == "t4":
+        return -1
+    elif notif.rtype == 'username_mention':
+        post = fetch_post_from_notif(notif)
+        job = twJob(to_answer=notif, the_post=post, jtype=JobType.normal, lang=post.lang)
+        return job
+    elif notif.rtype == "comment_reply":
+        # BAD BOT
+        if any(x in notif.body for x in bad_bot_strs):
+            job = twJob(to_answer=notif, the_post=None, jtype=JobType.badbot, lang=notif.lang)
+            return job
+        # GOOD BOT
+        elif any(x in notif.body for x in good_bot_strs):
+            job = twJob(to_answer=notif, the_post=None, jtype=JobType.goodbot, lang=notif.lang)
+            return job
+    return -1
 
 
 if __name__ == "__main__":
     twitterlinker = rBot(useragent, client_id, client_code, bot_username, bot_pass)
 
-    to_answer_q = queue.Queue()
-    to_reply_q = queue.Queue()
-    checking_t = threading.Thread(target=check_notifs, args=(to_answer_q,), daemon=True)
-    searching_t = threading.Thread(target=searching, args=(to_answer_q, to_reply_q), daemon=True)
-    replier_t = threading.Thread(target=replier, args=(to_reply_q,), daemon=True)
-    sub_listener = threading.Thread(target=sub_feed_checking, args=(to_answer_q,), daemon=True)
-    score_listener = threading.Thread(target=score_listener, daemon=True)
+    reply_q = queue.Queue()
+    job_q = queue.Queue()
+    reply_worker_t = threading.Thread(target=reply_worker, args=(reply_q,), daemon=True)
+    job_handler_t = threading.Thread(target=job_handler, args=(job_q, reply_q), daemon=True)
+    notif_listener_t = threading.Thread(target=notif_listener, args=(job_q,), daemon=True)
+    sub_feed_listener_t = threading.Thread(target=sub_feed_listener, args=(job_q,), daemon=True)
+    score_listener_t = threading.Thread(target=score_listener, daemon=True)
 
-    checking_t.start()
-    searching_t.start()
-    sub_listener.start()
-    replier_t.start()
-    #score_listener.start()
+    reply_worker_t.start()
+    job_handler_t.start()
+    notif_listener_t.start()
+    sub_feed_listener_t.start()
+    score_listener_t.start()
 
     while True:
-        print(f"\033[4msearching jobs: {[search['notif'] for search in list(to_answer_q.queue)]}\033[0m")
-        print(f"\033[4mreplying jobs: {[replyy['thing'] for replyy in list(to_reply_q.queue)]}\033[0m")
-        sleep(13)
+        print(f"\033[4msearching jobs: {[search.to_answer for search in list(job_q.queue)]}\033[0m")
+        print(f"\033[4mreplying jobs: {[replyy.to_answer for replyy in list(reply_q.queue)]}\033[0m")
+        sleep(17)
