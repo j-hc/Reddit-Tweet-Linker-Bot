@@ -121,6 +121,7 @@ def reply_builder(lang, post, jtype, author):
                     print("getting backup archive")
                     backup_link = capture_tweet_arch(twitlink)
                     messagetxt += l_res["success"].format(username, twitlink) + "\r\n\n" + l_res["archive_info"].format(backup_link)
+                    messagetxt += l_res["outro"]
                 elif search_twitter_result == "error":
                     print("prolly not a tweet: " + post.id_)
                     return None

@@ -147,11 +147,11 @@ def prep_text(text, need_at):
             else:
                 break"""
 
-    for _ in range(0, round(len(search_text_splitted_2) * 0.6)):
+    for _ in range(0, round(len(search_text_splitted_2) * 0.7)):
         search_text_splitted_2.pop(-1)
         if len(search_text_splitted_2) < 50:
             possibe_search_text.append(" ".join(search_text_splitted_2))
-    for _ in range(0, round(len(search_text_splitted_3) * 0.6)):
+    for _ in range(0, round(len(search_text_splitted_3) * 0.7)):
         search_text_splitted_3.pop(0)
         if len(search_text_splitted_3) < 50:
             possibe_search_text.append(" ".join(search_text_splitted_3))

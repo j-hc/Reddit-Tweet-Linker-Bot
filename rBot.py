@@ -2,10 +2,11 @@ import requests
 import logging
 from http import cookiejar
 from rUtils import get_token, rNotif
+from time import sleep
 
 
 logging.basicConfig(level=logging.INFO, datefmt='%H:%M',
-                    format='%(asctime)s, [%(filename)s:%(lineno)d] %(funcName)s(): %(message)s')
+                    format='%(asctime)s, [%(filename)s:%(lineno)d] %(funcName)s(): %(message)s', filename='rbot.log')
 logger = logging.getLogger("logger")
 
 
@@ -29,15 +30,23 @@ class rBot:
 
     def handled_get(self, url, **kwargs):
         response = self.req_sesh.get(url, **kwargs)
-        if response.status_code == 403:
+        if response.status_code == 403 or response.status_code == 401:
             self.fetch_token()
             response = self.req_sesh.get(url, **kwargs)
+        elif response.status_code == 503:
+            logger.info("servers busy wait for 30s")
+            sleep(30)
+            response = self.req_sesh.post(url, **kwargs)
         return response
 
     def handled_post(self, url, **kwargs):
         response = self.req_sesh.post(url, **kwargs)
-        if response.status_code == 403:
+        if response.status_code == 403 or response.status_code == 401:
             self.fetch_token()
+            response = self.req_sesh.post(url, **kwargs)
+        elif response.status_code == 503:
+            logger.info("servers busy wait for 30s")
+            sleep(30)
             response = self.req_sesh.post(url, **kwargs)
         return response
 
@@ -78,13 +87,20 @@ class rBot:
 
     def check_last_comment_scores(self, limit=5):
         profile = self.handled_get(f"{self.base}/user/{self.bot_username}.json?limit={limit}")
-        cm_bodies = profile.json()["data"]["children"]
+        try:
+            cm_bodies = profile.json()["data"]["children"]
+        except:
+            logger.exception(profile.content.decode() + "\n")
         for cm_body in cm_bodies:
             yield cm_body
 
     def check_inbox(self):
         unread_notifs_req = self.handled_get(f"{self.base}/message/unread.json")
-        unread_notifs = unread_notifs_req.json()['data']['children']
+        try:
+            unread_notifs = unread_notifs_req.json()['data']['children']
+        except:
+            logger.exception(unread_notifs_req.content.decode() + "\n")
+
         for unread_notif in unread_notifs:
             notif = rNotif(unread_notif)
             self.read_notif(notif)
