@@ -16,8 +16,6 @@ subs_listening = ["svihs", "turkey"]
 score_listener_interval = 130
 sub_feed_listener_interval = 30
 notif_listener_interval = 10
-
-
 # -------------------------------
 
 
@@ -80,7 +78,6 @@ def reply_worker(reply_q):
         answer2 = to_reply.thing
         text = to_reply.text
         print("answer2: " + answer2.id_)
-        print(text)
         replied = twitterlinker.send_reply(text=text, thing=answer2)
         if replied != 0:
             reply_q.put(to_reply)
@@ -99,7 +96,10 @@ def job_handler(job_q, reply_q):
         if reply_built:
             reply_job = replyJob(text=reply_built, thing=answer2)
             reply_q.put(reply_job)
-            print('search DONE: ', post.id_)
+            if post:
+                print('search DONE: ', post.id_)
+            else:
+                print('search DONE: ', answer2.id_)
 
 
 def reply_builder(lang, post, jtype, author):
@@ -121,11 +121,18 @@ def reply_builder(lang, post, jtype, author):
                     print("getting backup archive")
                     backup_link = capture_tweet_arch(twitlink)
                     messagetxt += l_res["success"].format(username, twitlink) + "\r\n\n" + l_res["archive_info"].format(backup_link)
-        print("prolly not a tweet: " + post.id_)
-        return None
+                elif search_twitter_result == "error":
+                    print("prolly not a tweet: " + post.id_)
+                    return None
+            elif prepped_text_result == "error":
+                print("prolly not a tweet: " + post.id_)
+                return None
+        else:
+            print("prolly not a tweet: " + post.id_)
+            return None
 
     elif jtype == JobType.normal:
-        messagetxt = l_res["hello"].format(author) + l_res["introduction"] + "\r\n"
+        messagetxt = l_res["hello"].format(author) + " " + l_res["introduction"] + "\r\n"
         if is_img_post(post):
             textt = vision_ocr(post.url)
             if textt:
