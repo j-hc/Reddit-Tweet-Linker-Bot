@@ -44,6 +44,8 @@ def sub_feed_listener(job_q):
     # SUBREDDIT FEED CHECK
     checked_posts = []
     while True:
+        if len(checked_posts) > 50:
+            checked_posts = []
         last_submissions = fetch_subreddit_posts(subs_listening, limit=2)
         for last_submission in last_submissions:
             if not check_if_already_post(last_submission, checked_posts, twitterlinker.bot_username):

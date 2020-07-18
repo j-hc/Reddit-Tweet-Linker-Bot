@@ -8,7 +8,6 @@ rBase = "https://www.reddit.com"
 turkish_subs = ["turkey", "turkeyjerky", "testyapiyorum", "kgbtr", "svihs"]
 # -------------------------------
 
-
 class rNotif:
     def __init__(self, notif):
         self.kind = notif['kind']  # kind
@@ -63,8 +62,6 @@ def get_token(client_id_, client_code_, bot_username_, bot_pass_, useragent_):
 
 
 def check_if_already_post(post, checked_posts, username):
-    if len(checked_posts) > 50:
-        checked_posts = []
     if post in checked_posts:
         return True
     checked_posts.append(post)
