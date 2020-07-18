@@ -12,7 +12,7 @@ from collections import namedtuple
 # Some stuff.. ------------------
 bad_bot_strs = ["bad bot", "kotu bot", "kötü bot"]
 good_bot_strs = ["good bot", "iyi bot", "güzel bot", "cici bot"]
-subs_listening = ["svihs", "turkey", "kgbtr"]
+subs_listening = ["svihs", "turkey"]
 score_listener_interval = 130
 sub_feed_listener_interval = 30
 notif_listener_interval = 10
