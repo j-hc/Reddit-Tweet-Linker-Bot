@@ -57,7 +57,7 @@ class rBot:
             else:
                 break
         return response
-    
+
     def prep_session(self):
         req_sesh = requests.Session()
         req_sesh.cookies.set_policy(BlockAll())  # we dont need cookies
@@ -69,8 +69,10 @@ class rBot:
         logger.info('got new token: ' + token)
         self.req_sesh.headers.update({"Authorization": f"bearer {token}"})
 
-    def read_notif(self, notif):
-        self.handled_post(f"{self.base}/api/read_message", data={"id": notif.id_})
+    def read_notifs(self, notifs):
+        ids = [notif.id_ for notif in notifs]
+        ids = ','.join(ids)
+        self.handled_post(f"{self.base}/api/read_message", data={"id": ids})
         logger.info("read the notif")
 
     def del_comment(self, thingid):
@@ -111,5 +113,5 @@ class rBot:
 
         for unread_notif in unread_notifs:
             notif = rNotif(unread_notif)
-            self.read_notif(notif)
             yield notif
+

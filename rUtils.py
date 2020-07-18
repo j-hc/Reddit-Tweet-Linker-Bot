@@ -27,7 +27,8 @@ class rNotif:
         context_split = str(context).split('/')
         self.post_id = context_split[4]  # post id without t3 prefix
         # self.id_no_prefix = context_split[6]  # comment id without t1 prefix
-
+    def __repr__(self):
+        return f"(NotifObject: {self.id_})"
 
 class rPost:
     def __init__(self, post):

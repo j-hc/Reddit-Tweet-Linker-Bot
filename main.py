@@ -64,11 +64,14 @@ def notif_listener(job_q):
     # INBOX CHECK
     while True:
         notifs = twitterlinker.check_inbox()
-        for notif in notifs:
-            job = notif_job_builder(notif)
-            if job != -1:
-                print(f"inbox checker: {notif.post_id} from {notif.subreddit}")
-                job_q.put(job)
+        notifs = list(notifs)
+        if len(notifs) > 0:
+            twitterlinker.read_notifs(notifs)
+            for notif in notifs:
+                job = notif_job_builder(notif)
+                if job != -1:
+                    print(f"inbox checker: {notif.post_id} from {notif.subreddit}")
+                    job_q.put(job)
         sleep(notif_listener_interval)
 
 
@@ -78,10 +81,10 @@ def reply_worker(reply_q):
         answer2 = to_reply.thing
         text = to_reply.text
         print("answer2: " + answer2.id_)
-        replied = twitterlinker.send_reply(text=text, thing=answer2)
+        """replied = twitterlinker.send_reply(text=text, thing=answer2)
         if replied != 0:
             reply_q.put(to_reply)
-            sleep(replied)
+            sleep(replied)"""
 
 
 def job_handler(job_q, reply_q):
