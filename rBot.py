@@ -37,6 +37,10 @@ class rBot:
             logger.info("servers busy wait for 30s")
             sleep(30)
             response = self.req_sesh.post(url, **kwargs)
+        elif response.status_code == 404:  # why tf 404 tho
+            logger.info("404 try again")
+            sleep(5)
+            response = self.req_sesh.post(url, **kwargs)
         return response
 
     def handled_post(self, url, **kwargs):
