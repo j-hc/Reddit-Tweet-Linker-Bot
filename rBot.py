@@ -29,31 +29,35 @@ class rBot:
         self.fetch_token()  # Fetch the token on instantioation (i cant spell for shit)
 
     def handled_get(self, url, **kwargs):
-        response = self.req_sesh.get(url, **kwargs)
-        if response.status_code == 403 or response.status_code == 401:
-            self.fetch_token()
+        while True:
             response = self.req_sesh.get(url, **kwargs)
-        elif response.status_code == 503:
-            logger.info("servers busy wait for 30s")
-            sleep(30)
-            response = self.req_sesh.post(url, **kwargs)
-        elif response.status_code == 404:  # why tf 404 tho
-            logger.info("404 try again")
-            sleep(5)
-            response = self.req_sesh.post(url, **kwargs)
+            if response.status_code == 403 or response.status_code == 401:
+                self.fetch_token()
+            elif response.status_code == 503:
+                logger.info("servers busy wait for 30s")
+                sleep(30)
+            elif response.status_code == 404:  # why tf 404 tho
+                logger.info("404 try again")
+                sleep(5)
+            else:
+                break
         return response
 
     def handled_post(self, url, **kwargs):
-        response = self.req_sesh.post(url, **kwargs)
-        if response.status_code == 403 or response.status_code == 401:
-            self.fetch_token()
+        while True:
             response = self.req_sesh.post(url, **kwargs)
-        elif response.status_code == 503:
-            logger.info("servers busy wait for 30s")
-            sleep(30)
-            response = self.req_sesh.post(url, **kwargs)
+            if response.status_code == 403 or response.status_code == 401:
+                self.fetch_token()
+            elif response.status_code == 503:
+                logger.info("servers busy wait for 30s")
+                sleep(30)
+            elif response.status_code == 404:  # why tf 404 tho
+                logger.info("404 try again")
+                sleep(5)
+            else:
+                break
         return response
-
+    
     def prep_session(self):
         req_sesh = requests.Session()
         req_sesh.cookies.set_policy(BlockAll())  # we dont need cookies
