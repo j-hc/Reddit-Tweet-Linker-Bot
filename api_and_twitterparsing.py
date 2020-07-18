@@ -63,13 +63,16 @@ def prep_text(text, need_at):
     split_loaded = text.strip().split('\n')
     at = None
     below_this = None
-    for at_dnm in range(len(split_loaded) - 1, -1, -1):
+    lenght = len(split_loaded)
+    for at_dnm in range(lenght - 1, -1, -1):
         at_dnm_txt = str(split_loaded[at_dnm])
-        # print(at_dnm_txt)
+        print(at_dnm_txt)
         at_dnm_txt_low = at_dnm_txt.lower()
         if "@" in at_dnm_txt and any(yasak in at_dnm_txt_low for yasak in replying_to):
             below_this = at_dnm + 1
         else:
+            if at_dnm > lenght - 2:
+                continue
             at_re = re.search(r'@([A-Za-z0-9_]+)', at_dnm_txt)
             if at_re:
                 at = at_re.group(1)
@@ -77,6 +80,7 @@ def prep_text(text, need_at):
     if not at:
         at_dnm = 0
 
+    print(at_dnm)
     y = ['Twitter for', 'Translate Tweet', 'Twitter Web App', 'PM - ', '20 - ', '19 - ', 'for iOS', 'for Android',
          'pm ·', 'am ·', ' Translate from ']
     search_list = []

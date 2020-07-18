@@ -6,7 +6,7 @@ from time import sleep
 
 
 logging.basicConfig(level=logging.INFO, datefmt='%H:%M',
-                    format='%(asctime)s, [%(filename)s:%(lineno)d] %(funcName)s(): %(message)s', filename='rbot.log')
+                    format='%(asctime)s, [%(filename)s:%(lineno)d] %(funcName)s(): %(message)s')
 logger = logging.getLogger("logger")
 
 
