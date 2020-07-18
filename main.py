@@ -81,10 +81,10 @@ def reply_worker(reply_q):
         answer2 = to_reply.thing
         text = to_reply.text
         print("answer2: " + answer2.id_)
-        """replied = twitterlinker.send_reply(text=text, thing=answer2)
+        replied = twitterlinker.send_reply(text=text, thing=answer2)
         if replied != 0:
             reply_q.put(to_reply)
-            sleep(replied)"""
+            sleep(replied)
 
 
 def job_handler(job_q, reply_q):
