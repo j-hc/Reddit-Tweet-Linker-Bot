@@ -66,7 +66,6 @@ def prep_text(text, need_at):
     lenght = len(split_loaded)
     for at_dnm in range(lenght - 1, -1, -1):
         at_dnm_txt = str(split_loaded[at_dnm])
-        print(at_dnm_txt)
         at_dnm_txt_low = at_dnm_txt.lower()
         if "@" in at_dnm_txt and any(yasak in at_dnm_txt_low for yasak in replying_to):
             below_this = at_dnm + 1
