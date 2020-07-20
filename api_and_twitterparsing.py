@@ -6,6 +6,7 @@ from info import vision_api_key
 import enum
 import json
 import base64
+from collections import namedtuple
 
 # Some stuff.. ------------------
 replying_to = ["antwort an", "replying to", "yanıt olarak", "yanit olarak", "svar till"]
@@ -47,10 +48,11 @@ def is_exist_twitter(username):
 
 def vision_ocr(picurl):
     params = {"key": vision_api_key, "fields": "responses.fullTextAnnotation.text"}
-    #data = json.dumps({"requests": [{"image": {"source": {"image_uri": picurl}}, "features": [{"type": "TEXT_DETECTION"}]}]})
+    #params = {"key": vision_api_key}
     img_bytes = requests.get(picurl).content
     bss = base64.b64encode(img_bytes)
     data = json.dumps({"requests": [{"image": {"content": bss.decode()}, "features": [{"type": "TEXT_DETECTION"}]}]})
+    # data = json.dumps({"requests": [{"image": {"source": {"image_uri": picurl}}, "features": [{"type": "TEXT_DETECTION"}]}]})
     response = requests.post("https://vision.googleapis.com/v1/images:annotate", data=data, params=params).json()
     if bool(response['responses'][0]):
         txt = response['responses'][0]["fullTextAnnotation"]["text"]
@@ -69,19 +71,15 @@ def prep_text(text, need_at):
         at_dnm_txt_low = at_dnm_txt.lower()
         if "@" in at_dnm_txt and any(yasak in at_dnm_txt_low for yasak in replying_to):
             below_this = at_dnm + 1
-        else:
-            if at_dnm > lenght - 2:
-                continue
-            at_re = re.search(r'@([A-Za-z0-9_]+)', at_dnm_txt)
-            if at_re:
-                at = at_re.group(1)
+        elif at_dnm < lenght - 2 and '@' in at_dnm_txt:
+            try_at = at_dnm_txt.split('@')[1].split()[0]
+            if bool(re.fullmatch(r'([A-Za-z0-9_]+)', try_at)):
+                at = try_at
                 break
     if not at:
         at_dnm = 0
-
-    print(at_dnm)
     y = ['Twitter for', 'Translate Tweet', 'Twitter Web App', 'PM - ', '20 - ', '19 - ', 'for iOS', 'for Android',
-         'pm ·', 'am ·', ' Translate from ']
+         ' · ', ' Translate from ', 'Tweet your reply']
     search_list = []
     if below_this:  # IF REPLY FOUND
         ah = below_this
@@ -100,6 +98,7 @@ def prep_text(text, need_at):
     search_list = ' '.join(search_list).split()
     search_list = [x for x in search_list if '#' not in x and x]  # clear from hashtags and NoneTypes
     search_text = ' '.join(search_list)
+
     if not at:
         print("@username gozukmuyor")
         possible_at = [""]
@@ -109,7 +108,7 @@ def prep_text(text, need_at):
     else:
         find_at = at
         possible_at = [""]
-        if '...' in find_at or len(find_at) < 5:
+        if '.' in find_at or len(find_at) < 5:
             possible_at = [""]
         else:
             account_status = is_exist_twitter(find_at)
@@ -137,18 +136,6 @@ def prep_text(text, need_at):
     search_text_splitted = search_text.split()
     search_text_splitted_2 = search_text.split()
     search_text_splitted_3 = search_text.split()
-
-    """split_by_at = search_text.split('@')
-    if '@' in search_text and len(split_by_at[0].split()) > 1:
-        news = split_by_at[0].strip()
-        possibe_search_text.append(news)
-        news = news.split(" ")
-        for xs in range(0, 5):
-            if len(news) >= 2:
-                news.pop()
-                possibe_search_text.append(" ".join(news))
-            else:
-                break"""
 
     for _ in range(0, round(len(search_text_splitted_2) * 0.7)):
         search_text_splitted_2.pop(-1)

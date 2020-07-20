@@ -1,6 +1,8 @@
 from info import useragent
 import requests
 import requests.auth
+from time import sleep
+import logging
 
 rBase = "https://www.reddit.com"
 
@@ -51,6 +53,16 @@ class rPost:
     def __repr__(self):
         return f"(PostObject: {self.id_})"
 
+logging.basicConfig(level=logging.WARNING, filename='rutil.log')
+def handled_get(url, **kwargs):
+    while True:
+        response = requests.get(url, **kwargs)
+        if response.status_code != 200:
+            logging.warning(str(response.status_code) + ": " + response.content.decode())
+            sleep(20)
+        else:
+            break
+    return response
 
 def get_token(client_id_, client_code_, bot_username_, bot_pass_, useragent_):
     client_auth = requests.auth.HTTPBasicAuth(client_id_, client_code_)
@@ -66,7 +78,7 @@ def check_if_already_post(post, checked_posts, username):
         return True
     checked_posts.append(post)
     p_name = post.id_.split('_')[1]
-    comment_info_req = requests.get(f"{rBase}/{p_name}/.json", headers={"User-Agent": useragent})
+    comment_info_req = handled_get(f"{rBase}/{p_name}/.json", headers={"User-Agent": useragent})
     for reply in comment_info_req.json()[1]["data"]["children"]:
         if reply["data"]["author"] == username:
             return True
@@ -74,14 +86,14 @@ def check_if_already_post(post, checked_posts, username):
 
 
 def fetch_post_from_notif(notif):
-    response = requests.get(f"{rBase}/{notif.post_id}/.json", headers={"User-Agent": useragent})
+    response = handled_get(f"{rBase}/{notif.post_id}/.json", headers={"User-Agent": useragent})
     post = response.json()[0]['data']['children'][0]
     return rPost(post)
 
 
 def fetch_subreddit_posts(subs, limit):
     for sub in subs:
-        posts_req = requests.get(f"{rBase}/r/{sub}/new.json?limit={str(limit)}", headers={"User-Agent": useragent})
+        posts_req = handled_get(f"{rBase}/r/{sub}/new.json?limit={str(limit)}", headers={"User-Agent": useragent})
         posts = posts_req.json()["data"]["children"]
         for post in posts:
             yield rPost(post)
