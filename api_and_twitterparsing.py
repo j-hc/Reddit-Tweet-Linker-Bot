@@ -76,21 +76,19 @@ def prep_text(text, need_at):
             if bool(re.fullmatch(r'([A-Za-z0-9_]+)', try_at)):
                 at = try_at
                 break
-    if not at:
-        at_dnm = 0
+
     y = ['Twitter for', 'Translate Tweet', 'Twitter Web App', 'PM - ', '20 - ', '19 - ', 'for iOS', 'for Android',
          ' · ', ' Translate from ', 'Tweet your reply']
     search_list = []
     if below_this:  # IF REPLY FOUND
         ah = below_this
     elif not at:  # IF AT NOT FOUND
-        ah = at_dnm
+        ah = 0
     else:  # IF AT FOUND
         ah = at_dnm + 1
     for s in split_loaded[ah:len(split_loaded)]:
-        if not any(yasak in s for yasak in y):
-            if (len(s) > 13 or '@' in s) and ah >= at_dnm:
-                search_list.append(s.strip())
+        if not any(yasak in s for yasak in y) and len(s) > 13 or '@' in s:
+            search_list.append(s.strip())
         else:
             break
         ah = ah + 1

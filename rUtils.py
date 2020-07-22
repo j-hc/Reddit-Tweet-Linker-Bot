@@ -2,13 +2,13 @@ from info import useragent
 import requests
 import requests.auth
 from time import sleep
-import logging
 
 rBase = "https://www.reddit.com"
 
 # Some stuff.. ------------------
 turkish_subs = ["turkey", "turkeyjerky", "testyapiyorum", "kgbtr", "svihs"]
 # -------------------------------
+
 
 class rNotif:
     def __init__(self, notif):
@@ -28,8 +28,10 @@ class rNotif:
         context_split = str(context).split('/')
         self.post_id = context_split[4]  # post id without t3 prefix
         # self.id_no_prefix = context_split[6]  # comment id without t1 prefix
+
     def __repr__(self):
         return f"(NotifObject: {self.id_})"
+
 
 class rPost:
     def __init__(self, post):
@@ -53,16 +55,16 @@ class rPost:
     def __repr__(self):
         return f"(PostObject: {self.id_})"
 
-logging.basicConfig(level=logging.WARNING, filename='rutil.log')
+
 def handled_get(url, **kwargs):
     while True:
         response = requests.get(url, **kwargs)
         if response.status_code != 200:
-            logging.warning(str(response.status_code) + ": " + response.content.decode())
             sleep(20)
         else:
             break
     return response
+
 
 def get_token(client_id_, client_code_, bot_username_, bot_pass_, useragent_):
     client_auth = requests.auth.HTTPBasicAuth(client_id_, client_code_)
