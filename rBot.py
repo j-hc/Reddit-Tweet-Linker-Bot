@@ -1,12 +1,14 @@
 import requests
+import requests.auth
 import logging
 from http import cookiejar
-from rUtils import get_token, rNotif
-from time import sleep
+from rUtils import rNotif, rBase
+from urllib3.util.retry import Retry
+from requests.adapters import HTTPAdapter
 
 
 logging.basicConfig(level=logging.INFO, datefmt='%H:%M',
-                    format='%(asctime)s, [%(filename)s:%(lineno)d] %(funcName)s(): %(message)s', filename='rbot.log')
+                    format='%(asctime)s, [%(filename)s:%(lineno)d] %(funcName)s(): %(message)s')
 logger = logging.getLogger("logger")
 
 
@@ -30,15 +32,14 @@ class rBot:
 
     def handled_get(self, url, **kwargs):
         while True:
-            response = self.req_sesh.get(url, **kwargs)
+            try:
+                response = self.req_sesh.get(url, **kwargs)
+            except:
+                with open("hata.txt", "a") as f:
+                    f.write(response.status_code)
+                raise
             if response.status_code == 403 or response.status_code == 401:
                 self.fetch_token()
-            elif response.status_code == 503:
-                logger.info("servers busy wait for 30s")
-                sleep(30)
-            elif response.status_code == 404:  # why tf 404 tho
-                logger.info("404 try again")
-                sleep(5)
             else:
                 break
         return response
@@ -48,24 +49,31 @@ class rBot:
             response = self.req_sesh.post(url, **kwargs)
             if response.status_code == 403 or response.status_code == 401:
                 self.fetch_token()
-            elif response.status_code == 503:
-                logger.info("servers busy wait for 30s")
-                sleep(30)
-            elif response.status_code == 404:  # why tf 404 tho
-                logger.info("404 try again")
-                sleep(5)
             else:
                 break
         return response
 
     def prep_session(self):
         req_sesh = requests.Session()
+        retries = Retry(total=6,
+                        backoff_factor=1,
+                        status_forcelist=[500, 502, 503, 504, 404, 104])
+        req_sesh.mount('https://', HTTPAdapter(max_retries=retries))
         req_sesh.cookies.set_policy(BlockAll())  # we dont need cookies
         req_sesh.headers.update({"User-Agent": self.useragent})
         return req_sesh
 
+    @staticmethod
+    def get_new_token(client_id_, client_code_, bot_username_, bot_pass_, useragent_):
+        client_auth = requests.auth.HTTPBasicAuth(client_id_, client_code_)
+        post_data = {"grant_type": "password", "username": bot_username_, "password": bot_pass_}
+        response_token = requests.post(f"{rBase}/api/v1/access_token", auth=client_auth, data=post_data,
+                                       headers={"User-Agent": useragent_})
+        access_token = response_token.json()['access_token']
+        return access_token
+
     def fetch_token(self):
-        token = get_token(self.client_id, self.client_code, self.bot_username, self.bot_pass, self.useragent)
+        token = rBot.get_new_token(self.client_id, self.client_code, self.bot_username, self.bot_pass, self.useragent)
         logger.info('got new token: ' + token)
         self.req_sesh.headers.update({"Authorization": f"bearer {token}"})
 
@@ -96,22 +104,21 @@ class rBot:
             return 0
 
     def check_last_comment_scores(self, limit=5):
-        profile = self.handled_get(f"{self.base}/user/{self.bot_username}.json?limit={limit}")
-        try:
-            cm_bodies = profile.json()["data"]["children"]
-        except:
-            logger.exception(profile.content.decode() + "\n")
+        profile = self.handled_get(f"{self.base}/user/{self.bot_username}.json", params={"limit": limit})
+        cm_bodies = profile.json()["data"]["children"]
+        score_nd_id = {}
         for cm_body in cm_bodies:
-            yield cm_body
+            score_nd_id.update({cm_body["data"]["name"]: cm_body["data"]["score"]})
+        return score_nd_id
 
-    def check_inbox(self):
+    def check_inbox(self, rkind):
         unread_notifs_req = self.handled_get(f"{self.base}/message/unread.json")
-        try:
-            unread_notifs = unread_notifs_req.json()['data']['children']
-        except:
-            logger.exception(unread_notifs_req.content.decode() + "\n")
+        unread_notifs = unread_notifs_req.json()['data']['children']
 
         for unread_notif in unread_notifs:
-            notif = rNotif(unread_notif)
-            yield notif
+            if unread_notif['kind'] == rkind:
+                yield rNotif(unread_notif)
 
+    def get_info(self, thing_id):
+        thing_info = self.handled_get(f'{self.base}/api/info', params={"id": thing_id})
+        return thing_info.json()['data']['children'][0]

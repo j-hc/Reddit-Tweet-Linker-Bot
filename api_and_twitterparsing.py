@@ -1,30 +1,34 @@
 import requests
-from bs4 import BeautifulSoup
-import urllib.parse
 import re
 from info import vision_api_key
-import enum
+from enum import Enum
 import json
 import base64
 from collections import namedtuple
+from twitter_client import TWStatus, TwitterClient
+from math import ceil
 
 # Some stuff.. ------------------
-replying_to = ["antwort an", "replying to", "yanıt olarak", "yanit olarak", "svar till"]
+replying_to = ["antwort an", "replying to", " adlı kişiye", " adlı kullanıcılara", "svar till"]
+endhere = ['Twitter for', 'Translate Tweet', 'Twitter Web App', 'PM - ', '20 - ', '19 - ', 'for iOS', 'for Android',
+           ' · ', ' Translate from ', 'Tweet your reply', 'Show this thread', 'Yanıtını Tweetle', ' - 1', ' - 2',
+           ' - 3', 'dilinden Google tarafından']
 # -------------------------------
 
 
-class Reasons(enum.Enum):
+class Reasons(Enum):
     NO_TEXT = -1
     DEFAULT = -2
     NO_AT = -3
     NO_IMG = -4
+    TOO_SHORT_NO_AT = -8
     ACCOUNT_SUSPENDED = -5
+    ACCOUNT_DNE = -6
+    ACCOUNT_PROTECTED = -7
 
 
-class TWStatus(enum.Enum):
-    OK = 1
-    SUSPENDED = 2
-    DNE = 3
+tweet_search_model = namedtuple("tweet_search_model", "possible_at possibe_search_text no_at_variaton")
+tw_client = TwitterClient()
 
 
 def capture_tweet_arch(url):
@@ -36,19 +40,9 @@ def capture_tweet_arch(url):
     return f"https://web.archive.org/web/submit?url={url}"
 
 
-def is_exist_twitter(username):
-    pagec = requests.get(f"https://mobile.twitter.com/{username}", allow_redirects=False, cookies={'m5': 'off'})
-    if pagec.status_code == 200:  # OK
-        return TWStatus.OK
-    elif pagec.status_code == 307:
-        return TWStatus.SUSPENDED
-    elif pagec.status_code == 404:
-        return TWStatus.DNE
-
-
 def vision_ocr(picurl):
     params = {"key": vision_api_key, "fields": "responses.fullTextAnnotation.text"}
-    #params = {"key": vision_api_key}
+    # params = {"key": vision_api_key}
     img_bytes = requests.get(picurl).content
     bss = base64.b64encode(img_bytes)
     data = json.dumps({"requests": [{"image": {"content": bss.decode()}, "features": [{"type": "TEXT_DETECTION"}]}]})
@@ -61,152 +55,183 @@ def vision_ocr(picurl):
     return txt
 
 
+def append_in(txt_spl, possible_list):
+    toappend = ' '.join(txt_spl)
+    if (45 > len(txt_spl) > 3 or (len(toappend) >= 13 and 1 < len(txt_spl) < 45)) and toappend not in possible_list:
+        possible_list.append(toappend)
+
+
 def prep_text(text, need_at):
     split_loaded = text.strip().split('\n')
-    at = None
-    below_this = None
-    lenght = len(split_loaded)
-    for at_dnm in range(lenght - 1, -1, -1):
-        at_dnm_txt = str(split_loaded[at_dnm])
-        at_dnm_txt_low = at_dnm_txt.lower()
-        if "@" in at_dnm_txt and any(yasak in at_dnm_txt_low for yasak in replying_to):
-            below_this = at_dnm + 1
-        elif at_dnm < lenght - 2 and '@' in at_dnm_txt:
-            try_at = at_dnm_txt.split('@')[1].split()[0]
-            if bool(re.fullmatch(r'([A-Za-z0-9_]+)', try_at)):
-                at = try_at
+
+    start_index = len(split_loaded) - 1
+    tweet_search_models = []
+    last_err = None
+    total_detected_tweets = 0
+    while not start_index == -1:
+        at = None
+        below_this = None
+        for at_dnm in range(start_index, -1, -1):
+            at_dnm_txt = str(split_loaded[at_dnm])
+            at_dnm_txt_low = at_dnm_txt.lower()
+            if "@" in at_dnm_txt:
+                if any(yasak in at_dnm_txt_low for yasak in replying_to):
+                    below_this = at_dnm + 1
+                else:
+                    extrct_at = at_dnm_txt.split('@')[1].split()
+                    if bool(extrct_at):
+                        if len(extrct_at) >= 1:
+                            if len(' '.join(extrct_at[1:])) < 7 or ' · ' in at_dnm_txt:
+                                at = extrct_at[0]
+                                break
+                            else:
+                                continue
+                        else:
+                            at = extrct_at[0]
+                            break
+
+        if not at:
+            print("@username gozukmuyor")
+            possible_at = None
+            if need_at:  # which means, called from a listing job
+                last_err = {"result": "error", "reason": Reasons.NO_AT}
+                start_index = at_dnm - 1
+                continue
+        else:
+            find_at = at
+            # if '.' in find_at or len(find_at) < 4:
+            if not bool(re.fullmatch(r"[A-Za-z0-9_]{4,15}", find_at)):
+                if not below_this:
+                    below_this = at_dnm + 1
+                possible_at = None
+            else:
+                account_status = tw_client.get_twitter_account_status(find_at)
+                if account_status == TWStatus.OK:
+                    possible_at = find_at
+                elif account_status == TWStatus.SUSPENDED:
+                    last_err = {"result": "error", "reason": Reasons.ACCOUNT_SUSPENDED, "suspended_account": find_at}
+                    start_index = at_dnm - 1
+                    continue
+                elif account_status == TWStatus.PROTECTED:
+                    last_err = {"result": "error", "reason": Reasons.ACCOUNT_PROTECTED, "protected_account": find_at}
+                    start_index = at_dnm - 1
+                    continue
+                elif account_status == TWStatus.DNE:
+                    last_err = {"result": "error", "reason": Reasons.ACCOUNT_DNE, "dne_account": find_at}
+                    start_index = at_dnm - 1
+                    continue
+
+        # ------------------------------------------------
+        if below_this:  # IF REPLY FOUND
+            ah = below_this
+        elif not at:  # IF AT NOT FOUND
+            ah = 0
+        else:  # IF AT FOUND
+            ah = at_dnm + 1
+
+        search_list_tmp = []
+        for s in split_loaded[ah:start_index + 1]:
+            if not any(yasak in s for yasak in endhere):
+                # if len(s) >= 10 or '@' in s:
+                search_list_tmp.append(s.strip())
+            else:
                 break
 
-    y = ['Twitter for', 'Translate Tweet', 'Twitter Web App', 'PM - ', '20 - ', '19 - ', 'for iOS', 'for Android',
-         ' · ', ' Translate from ', 'Tweet your reply']
-    search_list = []
-    if below_this:  # IF REPLY FOUND
-        ah = below_this
-    elif not at:  # IF AT NOT FOUND
-        ah = 0
-    else:  # IF AT FOUND
-        ah = at_dnm + 1
-    for s in split_loaded[ah:len(split_loaded)]:
-        if not any(yasak in s for yasak in y) and len(s) > 13 or '@' in s:
-            search_list.append(s.strip())
+        search_list = []
+        if len(search_list_tmp) > 1:
+            for search_l in search_list_tmp:
+                if len(search_l) >= 10:
+                    search_list.append(search_l)
         else:
-            break
-        ah = ah + 1
+            search_list = search_list_tmp
 
-    search_list = ' '.join(search_list).split()
-    search_list = [x for x in search_list if '#' not in x and x]  # clear from hashtags and NoneTypes
-    search_text = ' '.join(search_list)
+        search_list = ' '.join(search_list).split()
+        # search_list = [x for x in search_list if '#' not in x and x]  # clear from hashtags and NoneTypes
+        search_list = [x for x in search_list if x]  # clear from NoneTypes if any
+        # search_text = ' '.join(search_list)
+        search_text = ' '.join(filter(lambda w: len(w) > 2, search_list))
+        search_text = re.sub(' +', ' ', search_text)
+        # ------------------------------------------------
 
-    if not at:
-        print("@username gozukmuyor")
-        possible_at = [""]
-        if need_at:
-            ret = {"result": "error", "reason": Reasons.NO_AT}
-            return ret
+        if not search_text:
+            print("no text")
+            last_err = {"result": "error", "reason": Reasons.NO_TEXT}
+            start_index = at_dnm - 1
+            continue
+
+        if not possible_at and len(search_text.split()) <= 4:
+            print("too short and there is no at")
+            last_err = {"result": "error", "reason": Reasons.TOO_SHORT_NO_AT}
+            start_index = at_dnm - 1
+            continue
+
+        possibe_search_text = []
+        search_text_s = search_text.split()
+        if len(search_text_s) < 45:
+            possibe_search_text.append(search_text)
+
+        slice_i = 2 if possible_at else 1.5
+        min_word_i = 3 if possible_at else 5
+        if len(search_text_s) >= min_word_i:
+            n_1 = ceil(len(search_text_s) / slice_i)
+
+            z_len_s = 100
+            f_len_s = 0
+            strs = []
+            while z_len_s > min_word_i and f_len_s < 45:
+                strs += [' '.join(search_text_s[i:i + n_1]) for i in range(0, len(search_text_s), n_1)]
+                z_len_s = len(strs[-2].split())
+                f_len_s = len(strs[0].split())
+
+                if len(strs[-1].split()) < min_word_i and len(strs[-1]) < 15:
+                    strs.pop(-1)
+                n_1 -= 1
+
+            for str_ in strs:
+                if len(str_.replace(' ', '')) < 8:
+                    strs.remove(str_)
+
+            print(strs)
+        else:
+            strs = []
+
+        possibe_search_text = possibe_search_text + strs
+
+        tweet_search_models.append(tweet_search_model(possible_at=possible_at, possibe_search_text=possibe_search_text,
+                                                      no_at_variaton=False))
+        total_detected_tweets += 1
+        if possible_at and len(search_text_s) > 5:
+            tweet_search_models.append(tweet_search_model(possible_at=None, possibe_search_text=[search_text],
+                                                          no_at_variaton=True))
+        start_index = at_dnm - 1
+    """if len(tweet_search_models) >= 2 and tweet_search_models[-1].possible_at is None:
+        tweet_search_models.pop(-1)"""
+    if bool(tweet_search_models):
+        return {"result": "success", "tweets2search": tweet_search_models, "total_detected_tweets": total_detected_tweets}
+    elif last_err:
+        return last_err
     else:
-        find_at = at
-        possible_at = [""]
-        if '.' in find_at or len(find_at) < 5:
-            possible_at = [""]
+        return {"result": "error", "reason": Reasons.DEFAULT}
+
+
+def twitter_search(at_dene, possibe_search_text, lang):
+    for search_text_use in possibe_search_text:
+        if at_dene:
+            print('twitter username: ' + at_dene)
+        print('tweet text: ' + search_text_use)
+
+        tweet_link = tw_client.search_tweet(tweet_text=search_text_use, from_whom=at_dene, lang=lang)
+        if tweet_link is None:
+            continue
         else:
-            account_status = is_exist_twitter(find_at)
-            if account_status == TWStatus.OK:
-                possible_at = [find_at]
-            elif account_status == TWStatus.SUSPENDED:
-                ret = {"result": "error", "reason": Reasons.ACCOUNT_SUSPENDED}
-                return ret
-            elif account_status == TWStatus.DNE:
-                if 'l' in find_at:
-                    find_at2 = find_at.replace('l', 'I')
-                    if is_exist_twitter(find_at2):
-                        possible_at.append(find_at2)
-                if 'I' in find_at:
-                    find_at3 = find_at.replace('I', 'l')
-                    if is_exist_twitter(find_at3):
-                        possible_at.append(find_at3)
-    if not search_text:
-        print("no text")
-        ret = {"result": "error", "reason": Reasons.NO_TEXT}
-        return ret
-
-    possibe_search_text = [search_text]
-    # print(search_text)
-    search_text_splitted = search_text.split()
-    search_text_splitted_2 = search_text.split()
-    search_text_splitted_3 = search_text.split()
-
-    for _ in range(0, round(len(search_text_splitted_2) * 0.7)):
-        search_text_splitted_2.pop(-1)
-        if len(search_text_splitted_2) < 50:
-            possibe_search_text.append(" ".join(search_text_splitted_2))
-    for _ in range(0, round(len(search_text_splitted_3) * 0.7)):
-        search_text_splitted_3.pop(0)
-        if len(search_text_splitted_3) < 50:
-            possibe_search_text.append(" ".join(search_text_splitted_3))
-    oss = 1
-    lnn = len(search_text_splitted) * 0.5
-    while len(search_text_splitted) > lnn:
-        oss = oss + 1
-        if oss % 2 == 0:
-            search_text_splitted.pop(-1)
-            to_app = " ".join(search_text_splitted)
-            if to_app not in possibe_search_text and len(search_text_splitted) < 50:
-                possibe_search_text.append(to_app)
+            print('\r\nFound yay: ' + tweet_link)
+        if at_dene is None:
+            found_tweetr = tweet_link.split('/')[3]
+            tweeter = found_tweetr
+            atsiz = True
         else:
-            search_text_splitted.pop(0)
-            to_app = " ".join(search_text_splitted)
-            if to_app not in possibe_search_text and len(search_text_splitted) < 50:
-                possibe_search_text.append(to_app)
+            tweeter = at_dene
+            atsiz = False
+        return {"result": "success", "username": tweeter, "twitlink": tweet_link, "atliatsiz": atsiz}
 
-    temp = search_text.split()
-    new2 = ' '.join(s for s in temp if not any(c.isdigit() for c in s))
-    ekle = new2.strip()
-    if ekle not in possibe_search_text and len(ekle.split()) < 50:
-        possibe_search_text.append(ekle)
-    # print("possible at's: ", end="")
-    # print(possible_at)
-    # print("possible search texts: ", end="")
-    # print(possibe_search_text)
-    return_dic = {"result": "success", "possible_at": possible_at, "possibe_search_text": possibe_search_text}
-    return return_dic
-
-
-def twitter_search(possible_at, possibe_search_text, lang):
-    for at_dene in possible_at:
-        for search_text_use in possibe_search_text:
-            if at_dene:
-                print('twitter username: ' + at_dene)
-                query = urllib.parse.quote(search_text_use + ' (from:{})'.format(at_dene))
-            else:
-                query = urllib.parse.quote(search_text_use)
-            print('tweet text: ' + search_text_use)
-            twit_search = 'https://mobile.twitter.com/search?q={}'.format(query)
-            print('search link: ' + twit_search)
-            accept_lang_header = 'tr-TR,tr;q=0.5' if lang == 'tur' else 'en-US,en;q=0.5'
-            tw = requests.get(twit_search, cookies={'m5': 'off'}, headers={'Accept-Language': accept_lang_header})
-            soup = BeautifulSoup(tw.content, "lxml")
-            search = soup.find('table', class_='tweet')
-
-            try:
-                status_endp = search["href"].split('?p')[0]
-            except TypeError:
-                continue
-            found_tweetr = status_endp.split('/')[1]
-
-            if at_dene and found_tweetr != at_dene:
-                continue
-
-            tweetlink = 'https://twitter.com' + status_endp
-
-            print('\r\nFound yay: ' + tweetlink)
-            if possible_at[0] == "":
-                tweeter = found_tweetr
-                atsiz = True
-            else:
-                tweeter = at_dene
-                atsiz = False
-            return_dic = {"result": "success", "username": tweeter, "twitlink": tweetlink, "atliatsiz": atsiz}
-            return return_dic
-
-    ret = {"result": "error", "reason": Reasons.DEFAULT}
-    return ret
+    return {"result": "error", "reason": Reasons.DEFAULT}

@@ -1,6 +1,5 @@
 from info import useragent
 import requests
-import requests.auth
 from time import sleep
 
 rBase = "https://www.reddit.com"
@@ -12,7 +11,7 @@ turkish_subs = ["turkey", "turkeyjerky", "testyapiyorum", "kgbtr", "svihs"]
 
 class rNotif:
     def __init__(self, notif):
-        self.kind = notif['kind']  # kind
+        # self.kind = notif['kind']  # kind
         content = notif['data']
         self.author = content['author']  # summoner
         self.body = content['body'].lower()  # body lowered
@@ -56,56 +55,50 @@ class rPost:
         return f"(PostObject: {self.id_})"
 
 
-def handled_get(url, **kwargs):
-    while True:
-        response = requests.get(url, **kwargs)
-        if response.status_code != 200:
-            sleep(20)
-        else:
-            break
-    return response
+class rUtils:
+    @staticmethod
+    def __handled_get(url, **kwargs):
+        while True:
+            response = requests.get(url, **kwargs)
+            if response.status_code != 200:
+                sleep(20)
+            else:
+                break
+        return response
 
-
-def get_token(client_id_, client_code_, bot_username_, bot_pass_, useragent_):
-    client_auth = requests.auth.HTTPBasicAuth(client_id_, client_code_)
-    post_data = {"grant_type": "password", "username": bot_username_, "password": bot_pass_}
-    response_token = requests.post(f"{rBase}/api/v1/access_token", auth=client_auth, data=post_data,
-                                   headers={"User-Agent": useragent_})
-    access_token = response_token.json()['access_token']
-    return access_token
-
-
-def check_if_already_post(post, checked_posts, username):
-    if post in checked_posts:
-        return True
-    checked_posts.append(post)
-    p_name = post.id_.split('_')[1]
-    comment_info_req = handled_get(f"{rBase}/{p_name}/.json", headers={"User-Agent": useragent})
-    for reply in comment_info_req.json()[1]["data"]["children"]:
-        if reply["data"]["author"] == username:
+    @staticmethod
+    def check_if_already_post(post, checked_posts, username):
+        if post in checked_posts:
             return True
-    return False
+        checked_posts.append(post)
+        p_name = post.id_.split('_')[1]
+        comment_info_req = rUtils.__handled_get(f"{rBase}/{p_name}/.json", headers={"User-Agent": useragent})
+        for reply in comment_info_req.json()[1]["data"]["children"]:
+            if reply["data"]["author"] == username:
+                return True
+        return False
 
+    @staticmethod
+    def fetch_post_from_notif(notif):
+        response = rUtils.__handled_get(f"{rBase}/{notif.post_id}/.json", headers={"User-Agent": useragent})
+        post = response.json()[0]['data']['children'][0]
+        return rPost(post)
 
-def fetch_post_from_notif(notif):
-    response = handled_get(f"{rBase}/{notif.post_id}/.json", headers={"User-Agent": useragent})
-    post = response.json()[0]['data']['children'][0]
-    return rPost(post)
+    @staticmethod
+    def fetch_subreddit_posts(subs, limit):
+        for sub in subs:
+            posts_req = rUtils.__handled_get(f"{rBase}/r/{sub}/new.json", headers={"User-Agent": useragent},
+                                           params={"limit": str(limit)})
+            posts = posts_req.json()["data"]["children"]
+            for post in posts:
+                yield rPost(post)
 
-
-def fetch_subreddit_posts(subs, limit):
-    for sub in subs:
-        posts_req = handled_get(f"{rBase}/r/{sub}/new.json?limit={str(limit)}", headers={"User-Agent": useragent})
-        posts = posts_req.json()["data"]["children"]
-        for post in posts:
-            yield rPost(post)
-
-
-def is_img_post(post):
-    if not post.is_self:
-        if post.url.split(".")[-1].lower() in ["jpg", "jpeg", "png", "tiff", "bmp"]:
-            return True
+    @staticmethod
+    def is_img_post(post):
+        if not post.is_self:
+            if post.url.split(".")[-1].lower() in ["jpg", "jpeg", "png", "tiff", "bmp"]:
+                return True
+            else:
+                return False
         else:
             return False
-    else:
-        return False
