@@ -5,7 +5,7 @@ from strings import tr, en
 from time import sleep
 import queue
 import threading
-from rUtils import rUtils
+from rUtils import rPost
 import enum
 from collections import namedtuple
 import traceback
@@ -20,6 +20,10 @@ notif_listener_interval = 10
 # -------------------------------
 
 
+twJob = namedtuple('twJob', 'to_answer the_post jtype lang')
+replyJob = namedtuple('replyJob', 'text thing')
+
+
 class JobType(enum.Enum):
     normal = 1
     listing = 2
@@ -27,14 +31,10 @@ class JobType(enum.Enum):
     badbot = 4
 
 
-twJob = namedtuple('twJob', 'to_answer the_post jtype lang')
-replyJob = namedtuple('replyJob', 'text thing')
-
-
 def score_listener():
     try:
         while True:
-            scores_id_d = twitterlinker.check_last_comment_scores(limit=7)
+            scores_id_d = twitterlinker.check_last_comment_scores()
             for score_id in scores_id_d:
                 if scores_id_d[score_id] <= -3:
                     twitterlinker.del_comment(score_id)
@@ -49,22 +49,21 @@ def score_listener():
 def sub_feed_listener(job_q):
     try:
         # SUBREDDIT FEED CHECK
-        checked_posts = []
         while True:
-            if len(checked_posts) > 50:
-                checked_posts = []
-            last_submissions = rUtils.fetch_subreddit_posts(subs_listening, limit=3)
+            last_submissions = twitterlinker.fetch_posts_from_subreddits(subs_listening, limit=3)
             for last_submission in last_submissions:
-                if not rUtils.check_if_already_post(last_submission, checked_posts, twitterlinker.bot_username):
-                    if rUtils.is_img_post(last_submission):
+                # if not rUtils.check_if_already_post(last_submission, checked_posts, twitterlinker.bot_username):
+                if not last_submission.is_saved:
+                    twitterlinker.save_thing_by_id(last_submission.id_)
+                    if last_submission.is_img_post():
                         job = twJob(to_answer=last_submission, the_post=last_submission, jtype=JobType.listing,
                                     lang=last_submission.lang)
                         job_q.put(job)
                         print("(SFC)maybe a job: " + last_submission.id_ + " from " + last_submission.subreddit)
                     else:
                         print("(SFC)this's not a pic: " + last_submission.id_ + " from " + last_submission.subreddit)
-                #else:
-                    #print("(SFC)already: " + last_submission.id_, end=' |')
+                # else:
+                    # print("(SFC)already: " + last_submission.id_, end=' |')
             sleep(sub_feed_listener_interval)
     except:
         hata = traceback.format_exc()
@@ -135,7 +134,7 @@ def job_handler(job_q, reply_q):
 def reply_builder(lang, post, jtype, author):
     try:
         l_res = tr if lang == "tur" else en
-        if jtype == JobType.listing and rUtils.is_img_post(post):
+        if jtype == JobType.listing:
             messagetxt = "\r\n" + l_res["introduction"] + "\r\n"
             textt = vision_ocr(post.url)
             if textt:
@@ -157,9 +156,10 @@ def reply_builder(lang, post, jtype, author):
                             twitlink = search_twitter.get("twitlink")
                             print("getting backup archive")
                             backup_link = capture_tweet_arch(twitlink)
-                            if len(searching_for_tweets) > 1:
+                            if total_detected_tweets >= 2:
                                 messagetxt += l_res["searched_among"].format(total_detected_tweets) + " "
-                            messagetxt += l_res["success"].format(username, twitlink) + "\r\n\n" + l_res["archive_info"].format(backup_link)
+                            messagetxt += l_res["success"].format(username, twitlink) + "\r\n\n" + l_res[
+                                "archive_info"].format(backup_link)
                             messagetxt += l_res["outro"]
                             return_none = False
                             break
@@ -176,7 +176,7 @@ def reply_builder(lang, post, jtype, author):
 
         elif jtype == JobType.normal:
             messagetxt = l_res["hello"].format(author) + " " + l_res["introduction"] + "\r\n"
-            if rUtils.is_img_post(post):
+            if post.is_img_post():
                 textt = vision_ocr(post.url)
                 if textt:
                     prepped_text = prep_text(textt, need_at=False)
@@ -197,10 +197,10 @@ def reply_builder(lang, post, jtype, author):
                                 atliatsiz = search_twitter.get("atliatsiz")
                                 print("getting backup archive")
                                 backup_link = capture_tweet_arch(twitlink)
-                                if len(searching_for_tweets) > 1:
+                                if total_detected_tweets >= 2:
                                     messagetxt += l_res["searched_among"].format(total_detected_tweets) + " "
                                 if atliatsiz:
-                                    messagetxt += l_res["couldnt_find_at"].format(username, twitlink)+ "\r\n\n" + \
+                                    messagetxt += l_res["couldnt_find_at"].format(username, twitlink) + "\r\n\n" + \
                                                   l_res["archive_info"].format(backup_link)
                                 elif not atliatsiz:
                                     messagetxt += l_res["success"].format(username, twitlink) + "\r\n\n" + \
@@ -264,7 +264,8 @@ def reply_builder(lang, post, jtype, author):
 def notif_job_builder(notif):
     try:
         if notif.rtype == 'username_mention':
-            post = rUtils.fetch_post_from_notif(notif)
+            # post = rUtils.fetch_post_from_notif(notif)
+            post = rPost(twitterlinker.get_info_by_id(notif.post_id))
             job = twJob(to_answer=notif, the_post=post, jtype=JobType.normal, lang=post.lang)
             return job
         elif notif.rtype == "comment_reply":
@@ -302,9 +303,9 @@ if __name__ == "__main__":
     sub_feed_listener_t.start()
     score_listener_t.start()
 
+    print("everything: OK")
     while True:
         if any(list(job_q.queue)) or any(list(reply_q.queue)):
             print(f"\033[4msearching jobs: {[search.to_answer for search in list(job_q.queue)]}\033[0m")
             print(f"\033[4mreplying jobs: {[replyy.thing for replyy in list(reply_q.queue)]}\033[0m")
         sleep(30)
-

@@ -2,17 +2,7 @@ import requests
 import re
 from rBot import BlockAll
 from enum import Enum
-import urllib.request
 from collections import OrderedDict
-
-"""import http.client as http_client
-import logging
-http_client.HTTPConnection.debuglevel = 1
-logging.basicConfig()
-logging.getLogger().setLevel(logging.DEBUG)
-requests_log = logging.getLogger("requests.packages.urllib3")
-requests_log.setLevel(logging.DEBUG)
-requests_log.propagate = True"""
 
 TWITTER_PUBLIC_TOKEN = "AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs" \
                        "%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA"
@@ -45,8 +35,7 @@ class TwitterClient:
                 return response
 
     def get_gt_token(self):
-        response = requests.get('http://twitter.com/', headers={'User-Agent': 'Firefox'})
-        #response = urllib.request.urlopen('http://twitter.com/').read()
+        response = requests.get('https://twitter.com/', headers={'User-Agent': 'Firefox'})
         gt_token = re.search(b'gt=([0-9]*)', response.content).group(1)
         self.req_sesh.headers.update({"x-guest-token": gt_token.decode()})
 
@@ -88,7 +77,8 @@ class TwitterClient:
                         the_tweet = tweets[tweet]
                         break
         else:
-            if (tweets_vals[0].get("is_quote_status") and len(tweets) < 3) or (len(tweets) == 2 and tweets_vals[1].get("self_thread")):
+            if (tweets_vals[0].get("is_quote_status") and len(tweets) < 3) or (
+                    len(tweets) == 2 and tweets_vals[1].get("self_thread")):
                 the_tweet = tweets_vals[0]
             else:
                 the_tweet = tweets_vals[-1]

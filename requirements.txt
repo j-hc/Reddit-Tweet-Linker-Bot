@@ -1,2 +1,3 @@
-lxml>=4.5.2
 requests>=2.24.0
+ratelimit>=2.2.1
+

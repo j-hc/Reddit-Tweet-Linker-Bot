@@ -5,7 +5,10 @@ from http import cookiejar
 from rUtils import rNotif, rBase
 from urllib3.util.retry import Retry
 from requests.adapters import HTTPAdapter
-
+import traceback
+from time import sleep
+from rUtils import rPost
+from ratelimit import sleep_and_retry, limits
 
 logging.basicConfig(level=logging.INFO, datefmt='%H:%M',
                     format='%(asctime)s, [%(filename)s:%(lineno)d] %(funcName)s(): %(message)s')
@@ -30,34 +33,39 @@ class rBot:
         self.req_sesh = self.prep_session()
         self.fetch_token()  # Fetch the token on instantioation (i cant spell for shit)
 
+    @sleep_and_retry
+    @limits(calls=30, period=60)
     def handled_get(self, url, **kwargs):
         while True:
             try:
                 response = self.req_sesh.get(url, **kwargs)
             except:
-                with open("hata.txt", "a") as f:
-                    f.write(response.status_code)
-                raise
+                hata = traceback.format_exc()
+                with open("hata.txt", "a") as hataf:
+                    hataf.write(hata + "\n")
+                sleep(5)
+                continue
+
             if response.status_code == 403 or response.status_code == 401:
                 self.fetch_token()
             else:
-                break
-        return response
+                return response
 
+    @sleep_and_retry
+    @limits(calls=30, period=60)
     def handled_post(self, url, **kwargs):
         while True:
             response = self.req_sesh.post(url, **kwargs)
             if response.status_code == 403 or response.status_code == 401:
                 self.fetch_token()
             else:
-                break
-        return response
+                return response
 
     def prep_session(self):
         req_sesh = requests.Session()
         retries = Retry(total=6,
                         backoff_factor=1,
-                        status_forcelist=[500, 502, 503, 504, 404, 104])
+                        status_forcelist=[500, 502, 503, 504, 404])
         req_sesh.mount('https://', HTTPAdapter(max_retries=retries))
         req_sesh.cookies.set_policy(BlockAll())  # we dont need cookies
         req_sesh.headers.update({"User-Agent": self.useragent})
@@ -104,7 +112,7 @@ class rBot:
             return 0
 
     def check_last_comment_scores(self, limit=5):
-        profile = self.handled_get(f"{self.base}/user/{self.bot_username}.json", params={"limit": limit})
+        profile = self.handled_get(f"{self.base}/user/{self.bot_username}/comments", params={"limit": str(limit)})
         cm_bodies = profile.json()["data"]["children"]
         score_nd_id = {}
         for cm_body in cm_bodies:
@@ -112,13 +120,24 @@ class rBot:
         return score_nd_id
 
     def check_inbox(self, rkind):
-        unread_notifs_req = self.handled_get(f"{self.base}/message/unread.json")
+        unread_notifs_req = self.handled_get(f"{self.base}/message/unread")
         unread_notifs = unread_notifs_req.json()['data']['children']
 
         for unread_notif in unread_notifs:
             if unread_notif['kind'] == rkind:
                 yield rNotif(unread_notif)
 
-    def get_info(self, thing_id):
+    def get_info_by_id(self, thing_id):
         thing_info = self.handled_get(f'{self.base}/api/info', params={"id": thing_id})
         return thing_info.json()['data']['children'][0]
+
+    def fetch_posts_from_subreddits(self, subs, limit):
+        for sub in subs:
+            posts_req = self.handled_get(f'{self.base}/r/{sub}/new', params={"limit": str(limit)})
+            posts = posts_req.json()["data"]["children"]
+            for post in posts:
+                yield rPost(post)
+
+    def save_thing_by_id(self, thing_id):  # this for checking if the thing was seen before
+        self.handled_post(f'{self.base}/api/save', params={"id": thing_id})
+        logger.info(f'{thing_id} saved')

@@ -55,12 +55,6 @@ def vision_ocr(picurl):
     return txt
 
 
-def append_in(txt_spl, possible_list):
-    toappend = ' '.join(txt_spl)
-    if (45 > len(txt_spl) > 3 or (len(toappend) >= 13 and 1 < len(txt_spl) < 45)) and toappend not in possible_list:
-        possible_list.append(toappend)
-
-
 def prep_text(text, need_at):
     split_loaded = text.strip().split('\n')
 
@@ -183,9 +177,10 @@ def prep_text(text, need_at):
                 z_len_s = len(strs[-2].split())
                 f_len_s = len(strs[0].split())
 
-                if len(strs[-1].split()) < min_word_i and len(strs[-1]) < 15:
+                if len(strs[-1].split()) < min_word_i:
                     strs.pop(-1)
                 n_1 -= 1
+            strs.sort(key=lambda x: len(x.split()), reverse=True)
 
             for str_ in strs:
                 if len(str_.replace(' ', '')) < 8:
