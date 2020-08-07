@@ -1,14 +1,19 @@
 import requests
 import re
-from rBot import BlockAll
-from enum import Enum
 from collections import OrderedDict
-
-TWITTER_PUBLIC_TOKEN = "AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs" \
-                       "%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA"
+from .TW_user_status import TWStatus
+from http import cookiejar
 
 
 class TwitterClient:
+    class BlockAll(cookiejar.CookiePolicy):
+        return_ok = set_ok = domain_return_ok = path_return_ok = lambda self, *args, **kwargs: False
+        netscape = True
+        rfc2965 = hide_cookie2 = False
+
+    TWITTER_PUBLIC_TOKEN = "AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs" \
+                           "%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA"
+
     def __init__(self):
         self.req_sesh = TwitterClient.prep_session()
         self.get_gt_token()
@@ -16,9 +21,9 @@ class TwitterClient:
     @staticmethod
     def prep_session():
         req_sesh = requests.Session()
-        req_sesh.cookies.set_policy(BlockAll())
+        req_sesh.cookies.set_policy(TwitterClient.BlockAll())
         req_sesh.headers = {
-            'authorization': f'Bearer {TWITTER_PUBLIC_TOKEN}',
+            'authorization': f'Bearer {TwitterClient.TWITTER_PUBLIC_TOKEN}',
             'User-Agent': "Firefox",
             'Accept-Encoding': None,
             'Accept': None
@@ -104,8 +109,4 @@ class TwitterClient:
             return TWStatus.OK
 
 
-class TWStatus(Enum):
-    OK = 1
-    SUSPENDED = 2
-    DNE = 3
-    PROTECTED = 4
+tw_client = TwitterClient()

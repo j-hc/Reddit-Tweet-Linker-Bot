@@ -1,11 +1,10 @@
-from api_and_twitterparsing import Reasons, capture_tweet_arch, vision_ocr, prep_text, twitter_search
-from rBot import rBot
+from twitter_analyzing import Reasons, Backup, OCR, TextPrep, TWSearch
+from rStuff import rPost, rBot
 from info import useragent, client_id, client_code, bot_username, bot_pass
 from strings import tr, en
 from time import sleep
 import queue
 import threading
-from rUtils import rPost
 import enum
 from collections import namedtuple
 import traceback
@@ -136,9 +135,9 @@ def reply_builder(lang, post, jtype, author):
         l_res = tr if lang == "tur" else en
         if jtype == JobType.listing:
             messagetxt = "\r\n" + l_res["introduction"] + "\r\n"
-            textt = vision_ocr(post.url)
+            textt = OCR.vision_ocr(post.url)
             if textt:
-                prepped_text = prep_text(textt, need_at=True)
+                prepped_text = TextPrep.prep_text(textt, need_at=True)
                 prepped_text_result = prepped_text.get("result")
                 if prepped_text_result == "success":
                     searching_for_tweets = prepped_text.get("tweets2search")
@@ -149,13 +148,13 @@ def reply_builder(lang, post, jtype, author):
                     for searching_for_tweet in searching_for_tweets:
                         possible_at = searching_for_tweet.possible_at
                         possibe_search_text = searching_for_tweet.possibe_search_text
-                        search_twitter = twitter_search(possible_at, possibe_search_text, post.lang)
+                        search_twitter = TWSearch.twitter_search(possible_at, possibe_search_text, post.lang)
                         search_twitter_result = search_twitter.get("result")
                         if search_twitter_result == "success":
                             username = search_twitter.get("username")
                             twitlink = search_twitter.get("twitlink")
                             print("getting backup archive")
-                            backup_link = capture_tweet_arch(twitlink)
+                            backup_link = Backup.capture_tweet_arch(twitlink)
                             if total_detected_tweets >= 2:
                                 messagetxt += l_res["searched_among"].format(total_detected_tweets) + " "
                             messagetxt += l_res["success"].format(username, twitlink) + "\r\n\n" + l_res[
@@ -177,9 +176,9 @@ def reply_builder(lang, post, jtype, author):
         elif jtype == JobType.normal:
             messagetxt = l_res["hello"].format(author) + " " + l_res["introduction"] + "\r\n"
             if post.is_img_post():
-                textt = vision_ocr(post.url)
+                textt = OCR.vision_ocr(post.url)
                 if textt:
-                    prepped_text = prep_text(textt, need_at=False)
+                    prepped_text = TextPrep.prep_text(textt, need_at=False)
                     prepped_text_result = prepped_text.get("result")
                     if prepped_text_result == "success":
                         searching_for_tweets = prepped_text.get("tweets2search")
@@ -189,14 +188,14 @@ def reply_builder(lang, post, jtype, author):
                         for searching_for_tweet in searching_for_tweets:
                             possible_at = searching_for_tweet.possible_at
                             possibe_search_text = searching_for_tweet.possibe_search_text
-                            search_twitter = twitter_search(possible_at, possibe_search_text, post.lang)
+                            search_twitter = TWSearch.twitter_search(possible_at, possibe_search_text, post.lang)
                             search_twitter_result = search_twitter.get("result")
                             if search_twitter_result == "success":
                                 username = search_twitter.get("username")
                                 twitlink = search_twitter.get("twitlink")
                                 atliatsiz = search_twitter.get("atliatsiz")
                                 print("getting backup archive")
-                                backup_link = capture_tweet_arch(twitlink)
+                                backup_link = Backup.capture_tweet_arch(twitlink)
                                 if total_detected_tweets >= 2:
                                     messagetxt += l_res["searched_among"].format(total_detected_tweets) + " "
                                 if atliatsiz:

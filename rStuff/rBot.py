@@ -2,12 +2,11 @@ import requests
 import requests.auth
 import logging
 from http import cookiejar
-from rUtils import rNotif, rBase
+from .rUtils import rNotif, rBase, rPost
 from urllib3.util.retry import Retry
 from requests.adapters import HTTPAdapter
 import traceback
 from time import sleep
-from rUtils import rPost
 from ratelimit import sleep_and_retry, limits
 
 logging.basicConfig(level=logging.INFO, datefmt='%H:%M',
@@ -63,7 +62,7 @@ class rBot:
 
     def prep_session(self):
         req_sesh = requests.Session()
-        retries = Retry(total=6,
+        retries = Retry(total=5,
                         backoff_factor=1,
                         status_forcelist=[500, 502, 503, 504, 404])
         req_sesh.mount('https://', HTTPAdapter(max_retries=retries))
