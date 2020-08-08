@@ -23,7 +23,7 @@ class TweetDB:
         with sqlite3.connect(self.db_name, check_same_thread=False) as db:
             with db:
                 cur = db.cursor()
-                cur.execute("""SELECT backuplink FROM tws WHERE userid=? AND WHERE INSTR(book_name,?)>0;""", (userid, twtext))
+                cur.execute("""SELECT backuplink FROM tws WHERE userid=? AND WHERE INSTR(twtext,?)>0;""", (userid, twtext))
                 result = cur.fetchone()
         if result:
             return True

@@ -3,6 +3,9 @@ import re
 from collections import OrderedDict
 from .TW_user_status import TWStatus
 from http import cookiejar
+from requests.exceptions import ConnectionError
+from urllib3.exceptions import ProtocolError
+from time import sleep
 
 
 class TwitterClient:
@@ -32,8 +35,14 @@ class TwitterClient:
 
     def handled_get(self, url, **kwargs):
         while True:
-            response = self.req_sesh.get(url, **kwargs)
+            try:
+                response = self.req_sesh.get(url, **kwargs)
+            except (ConnectionError, ProtocolError):
+                sleep(5)
+                self.get_gt_token()
+                continue
             if response.status_code == 403 or response.status_code == 429:
+                sleep(5)
                 self.get_gt_token()
                 continue
             else:
