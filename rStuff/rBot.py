@@ -127,7 +127,7 @@ class rBot:
         thing_info = self.handled_req('GET', f'{self.base}/api/info', params={"id": thing_id})
         return thing_info.json()['data']['children'][0]
 
-    def fetch_posts_from_subreddits(self, subs, limit, pagination=True):
+    def fetch_posts_from_subreddits(self, subs, limit, pagination=True, stop_if_saved=True):
         if pagination and self.__pagination_before_specific:
             params = {"limit": limit, "before": self.__pagination_before_specific}
         else:
@@ -136,16 +136,17 @@ class rBot:
         posts_req = self.handled_req('GET', f'{self.base}/r/{subs}/new', params=params)
         posts = posts_req.json()["data"]["children"]
 
-        if pagination and bool(posts):
-            self.__pagination_before_specific = posts[0]["data"]["name"]
-
-        for post in reversed(posts):
-            the_post = rPost(post)
-            if the_post.is_saved:
+        for post_index in range(len(posts) - 1, -1, -1):
+            the_post = rPost(posts[post_index])
+            if the_post.is_saved and stop_if_saved:
                 break
+            if post_index == 0:
+                self.save_thing_by_id(the_post.id_)
+                if pagination:
+                    self.__pagination_before_specific = the_post.id_
             yield the_post
 
-    def fetch_posts_from_all(self, limit, pagination=True):
+    def fetch_posts_from_all(self, limit, pagination=True, stop_if_saved=True):
         if pagination and self.__pagination_before_all:
             params = {"limit": limit, "before": self.__pagination_before_all}
         else:
@@ -153,13 +154,14 @@ class rBot:
         posts_req = self.handled_req('GET', f'{self.base}/r/all/new', params=params)
         posts = posts_req.json()["data"]["children"]
 
-        if pagination and bool(posts):
-            self.__pagination_before_all = posts[0]["data"]["name"]
-
-        for post in reversed(posts):
-            the_post = rPost(post)
-            if the_post.is_saved:
+        for post_index in range(len(posts) - 1, -1, -1):
+            the_post = rPost(posts[post_index])
+            if the_post.is_saved and stop_if_saved:
                 break
+            if post_index == 0:
+                self.save_thing_by_id(the_post.id_)
+                if pagination:
+                    self.__pagination_before_all = the_post.id_
             yield the_post
 
     def exclude_from_all(self, sub):

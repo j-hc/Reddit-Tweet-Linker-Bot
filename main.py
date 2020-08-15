@@ -50,10 +50,9 @@ def sub_feed_listener(job_q):
     try:
         # SUBREDDIT FEED CHECK
         while True:
-            last_submissions = twitterlinker.fetch_posts_from_subreddits(subs_listening, limit=10)
-            last_submissions += twitterlinker.fetch_posts_from_all(limit=100)
+            last_submissions = list(twitterlinker.fetch_posts_from_subreddits(subs_listening, limit=10))
+            last_submissions += list(twitterlinker.fetch_posts_from_all(limit=100))
             for last_submission in last_submissions:
-                twitterlinker.save_thing_by_id(last_submission.id_)
                 if last_submission.is_img_post():
                     job = twJob(to_answer=last_submission, the_post=last_submission, jtype=JobType.listing,
                                 lang=last_submission.lang)
@@ -318,7 +317,8 @@ if __name__ == "__main__":
 
     print("everything: OK")
     while True:
-        if any(list(job_q.queue)) or any(list(reply_q.queue)):
+        """if any(list(job_q.queue)) or any(list(reply_q.queue)):
             print(f"\033[4msearching jobs: {[search.to_answer for search in list(job_q.queue)]}\033[0m")
-            print(f"\033[4mreplying jobs: {[replyy.thing for replyy in list(reply_q.queue)]}\033[0m")
-        sleep(10)
+            print(f"\033[4mreplying jobs: {[replyy.thing for replyy in list(reply_q.queue)]}\033[0m")"""
+        print(len(job_q.queue))
+        sleep(2)
