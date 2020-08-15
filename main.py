@@ -276,8 +276,7 @@ def notif_job_builder(notif):
             elif any(x in notif.body for x in good_bot_strs):
                 job = twJob(to_answer=notif, the_post=None, jtype=JobType.goodbot, lang=notif.lang)
                 return job
-        else:
-            return -1
+        return -1
     except:
         hata = traceback.format_exc()
         with open("hata.txt", "a") as hataf:

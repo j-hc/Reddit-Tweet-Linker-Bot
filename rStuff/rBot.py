@@ -6,6 +6,7 @@ from .rUtils import rNotif, rBase, rPost
 from urllib3.util.retry import Retry
 from requests.adapters import HTTPAdapter
 from ratelimit import sleep_and_retry, limits
+from time import sleep
 
 logging.basicConfig(level=logging.INFO, datefmt='%H:%M',
                     format='%(asctime)s, [%(filename)s:%(lineno)d] %(funcName)s(): %(message)s')
@@ -41,6 +42,7 @@ class rBot:
             else:
                 response = NotImplemented
             if response.status_code == 403 or response.status_code == 401:
+                sleep(2)
                 self.fetch_token()
                 continue
             else:
