@@ -6,3 +6,4 @@ test.py
 cs.json
 rbot.log
 rutil.log
+db/TweetDB.db
