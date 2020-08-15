@@ -7,6 +7,7 @@ en = {"introduction": "Im a bot and I find links to the twitter screenshots.",
                "\r\n\n^you ^can ^downvote ^to ^remove",
       "archive_info": "I took a backup of the tweet on archive-org in case it gets deleted: [backup]({0})",
       "searched_among": "I searched among {0} tweets.",
+      "db_query": "i couldn't find the tweet but it was in my database: {0}",
       "badbot": "you can downvote me to remove :(",
       "goodbot": "tanks (◡ ‿ ◡ ✿)",
 
@@ -28,6 +29,7 @@ tr = {"introduction": "ben bir botum ve tweet screenshotlarının linklerini bul
                "\r\n\n^yanlıssa ^kaldırmak ^için ^downvotelayın ^:)",
       "archive_info": "silinirse diye archive-org'da tweetin yedeğini de aldım: [yedek]({0})",
       "searched_among": "aramayı ss'de gördüğüm {0} tweette yaptım.",
+      "db_query": "tweeti twitter'da bulamadım ama database'imde kayıtlıydı: {0}",
       "badbot": "downvotelayarak kaldırabilirsiniz :(",
       "goodbot": "tşk (◡ ‿ ◡ ✿)",
 

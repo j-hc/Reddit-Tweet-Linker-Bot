@@ -1,5 +1,8 @@
 from .err_reasons import Reasons
 from .twitter_client import tw_client
+import sys
+sys.path.append('..')
+from db import tweet_database
 
 
 class TWSearch:
@@ -10,8 +13,13 @@ class TWSearch:
                 print('twitter username: ' + at_dene)
             print('tweet text: ' + search_text_use)
 
-            tweet_link = tw_client.search_tweet(tweet_text=search_text_use, from_whom=at_dene, lang=lang)
+            tweet_dict = tw_client.search_tweet(tweet_text=search_text_use, from_whom=at_dene, lang=lang)
+            tweet_link = tweet_dict.get('link')
+            user_id = tweet_dict.get('user_id')
             if tweet_link is None:
+                db_query = tweet_database.a_query(user_id, search_text_use)[0]
+                if db_query:
+                    return {"result": "success_db", "db_backup_link": db_query}
                 continue
             else:
                 print('\r\nFound yay: ' + tweet_link)
@@ -22,6 +30,6 @@ class TWSearch:
             else:
                 tweeter = at_dene
                 atsiz = False
-            return {"result": "success", "username": tweeter, "twitlink": tweet_link, "atliatsiz": atsiz}
+            return {"result": "success", "username": tweeter, "twitlink": tweet_link, "atliatsiz": atsiz, "user_id": user_id}
 
         return {"result": "error", "reason": Reasons.DEFAULT}

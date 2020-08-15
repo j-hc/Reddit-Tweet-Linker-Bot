@@ -8,11 +8,12 @@ import threading
 import enum
 from collections import namedtuple
 import traceback
+from db import tweet_database
 
 # Some stuff.. ------------------
 bad_bot_strs = ["bad bot", "kotu bot", "kötü bot"]
 good_bot_strs = ["good bot", "iyi bot", "güzel bot", "cici bot"]
-subs_listening = ["turkey", "svihs"]
+subs_listening = ["all"]
 score_listener_interval = 130
 sub_feed_listener_interval = 30
 notif_listener_interval = 10
@@ -49,7 +50,7 @@ def sub_feed_listener(job_q):
     try:
         # SUBREDDIT FEED CHECK
         while True:
-            last_submissions = twitterlinker.fetch_posts_from_subreddits(subs_listening, limit=3)
+            last_submissions = twitterlinker.fetch_posts_from_subreddits(subs_listening, limit=50)
             for last_submission in last_submissions:
                 # if not rUtils.check_if_already_post(last_submission, checked_posts, twitterlinker.bot_username):
                 if not last_submission.is_saved:
@@ -153,8 +154,12 @@ def reply_builder(lang, post, jtype, author):
                         if search_twitter_result == "success":
                             username = search_twitter.get("username")
                             twitlink = search_twitter.get("twitlink")
+                            user_id = search_twitter.get("user_id")
                             print("getting backup archive")
                             backup_link = Backup.capture_tweet_arch(twitlink)
+
+                            tweet_database.insert_data(user_id=user_id, twtext=possibe_search_text, backup_link=backup_link)
+
                             if total_detected_tweets >= 2:
                                 messagetxt += l_res["searched_among"].format(total_detected_tweets) + " "
                             messagetxt += l_res["success"].format(username, twitlink) + "\r\n\n" + l_res[
@@ -194,8 +199,12 @@ def reply_builder(lang, post, jtype, author):
                                 username = search_twitter.get("username")
                                 twitlink = search_twitter.get("twitlink")
                                 atliatsiz = search_twitter.get("atliatsiz")
+                                user_id = search_twitter.get("user_id")
                                 print("getting backup archive")
                                 backup_link = Backup.capture_tweet_arch(twitlink)
+
+                                tweet_database.insert_data(user_id=user_id, twtext=possibe_search_text, backup_link=backup_link)
+
                                 if total_detected_tweets >= 2:
                                     messagetxt += l_res["searched_among"].format(total_detected_tweets) + " "
                                 if atliatsiz:
@@ -204,6 +213,15 @@ def reply_builder(lang, post, jtype, author):
                                 elif not atliatsiz:
                                     messagetxt += l_res["success"].format(username, twitlink) + "\r\n\n" + \
                                                   l_res["archive_info"].format(backup_link)
+                                return_err = False
+                                break
+                            elif search_twitter_result == "success_db":
+                                backup_link = search_twitter.get("db_backup_link")
+
+                                if total_detected_tweets >= 2:
+                                    messagetxt += l_res["searched_among"].format(total_detected_tweets) + " "
+                                messagetxt += l_res["db_query"].format(backup_link)
+
                                 return_err = False
                                 break
                             elif search_twitter_result == "error":
@@ -295,7 +313,7 @@ if __name__ == "__main__":
     sub_feed_listener_t = threading.Thread(target=sub_feed_listener, args=(job_q,), daemon=True)
     score_listener_t = threading.Thread(target=score_listener, daemon=True)
 
-    reply_worker_t.start()
+    #reply_worker_t.start()
     job_handler_t.start()
     notif_listener_t.start()
     sub_feed_listener_t.start()
@@ -306,4 +324,4 @@ if __name__ == "__main__":
         if any(list(job_q.queue)) or any(list(reply_q.queue)):
             print(f"\033[4msearching jobs: {[search.to_answer for search in list(job_q.queue)]}\033[0m")
             print(f"\033[4mreplying jobs: {[replyy.thing for replyy in list(reply_q.queue)]}\033[0m")
-        sleep(30)
+        sleep(10)

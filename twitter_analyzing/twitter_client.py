@@ -38,11 +38,11 @@ class TwitterClient:
             try:
                 response = self.req_sesh.get(url, **kwargs)
             except (ConnectionError, ProtocolError):
-                sleep(5)
+                sleep(2)
                 self.get_gt_token()
                 continue
             if response.status_code == 403 or response.status_code == 429:
-                sleep(5)
+                sleep(2)
                 self.get_gt_token()
                 continue
             else:
@@ -81,7 +81,7 @@ class TwitterClient:
         tweets_vals = list(tweets.values())
 
         if not bool(tweets):
-            return None
+            return {}
 
         the_tweet = None
         if from_whom:
@@ -97,11 +97,12 @@ class TwitterClient:
             else:
                 the_tweet = tweets_vals[-1]
         if not the_tweet:
-            return None
+            return {}
         tweet_id = the_tweet['id_str']
-        the_user_id = users[the_tweet['user_id_str']]
+        user_id_str = the_tweet['user_id_str']
+        the_user_id = users[user_id_str]
         the_user_name = the_user_id['screen_name']
-        return f"https://twitter.com/{the_user_name}/status/{tweet_id}"
+        return {"link": f"https://twitter.com/{the_user_name}/status/{tweet_id}", "user_id": user_id_str}
 
     def get_twitter_account_status(self, username):
         params = ('variables', f'{{"screen_name":"{username}","withHighlightedLabel":true}}'),

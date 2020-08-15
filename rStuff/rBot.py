@@ -99,7 +99,7 @@ class rBot:
             return 0
 
     def check_last_comment_scores(self, limit=5):
-        profile = self.handled_req('GET', f"{self.base}/user/{self.bot_username}/comments", params={"limit": str(limit)})
+        profile = self.handled_req('GET', f"{self.base}/user/{self.bot_username}/comments", params={"limit": limit})
         cm_bodies = profile.json()["data"]["children"]
         score_nd_id = {}
         for cm_body in cm_bodies:
@@ -119,11 +119,14 @@ class rBot:
         return thing_info.json()['data']['children'][0]
 
     def fetch_posts_from_subreddits(self, subs, limit):
-        for sub in subs:
-            posts_req = self.handled_req('GET', f'{self.base}/r/{sub}/new', params={"limit": str(limit)})
-            posts = posts_req.json()["data"]["children"]
-            for post in posts:
-                yield rPost(post)
+        subs = '+'.join(subs)
+        posts_req = self.handled_req('GET', f'{self.base}/r/{subs}/new', params={"limit": limit})
+        posts = posts_req.json()["data"]["children"]
+        for post in reversed(posts):
+            the_post = rPost(post)
+            if the_post.is_saved:
+                break
+            yield the_post
 
     def save_thing_by_id(self, thing_id):  # this for checking if the thing was seen before
         self.handled_req('POST', f'{self.base}/api/save', params={"id": thing_id})
