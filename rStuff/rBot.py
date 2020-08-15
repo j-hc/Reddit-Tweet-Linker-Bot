@@ -22,7 +22,11 @@ class BlockAll(cookiejar.CookiePolicy):
 class rBot:
     base = "https://oauth.reddit.com"
 
-    def __init__(self, useragent, client_id, client_code, bot_username, bot_pass):
+    def __init__(self, useragent, client_id, client_code, bot_username, bot_pass, exclude_from_all=None):
+        if exclude_from_all is None:
+            exclude_from_all = []
+        self.__pagination_before_all = None
+        self.__pagination_before_specific = None
         self.useragent = useragent
         self.client_id = client_id
         self.client_code = client_code
@@ -30,6 +34,9 @@ class rBot:
         self.bot_pass = bot_pass
         self.req_sesh = self.prep_session()
         self.fetch_token()  # Fetch the token on instantioation (i cant spell for shit)
+
+        for sub in exclude_from_all:
+            self.exclude_from_all(sub)
 
     @sleep_and_retry
     @limits(calls=30, period=60)
@@ -39,6 +46,8 @@ class rBot:
                 response = self.req_sesh.post(url, **kwargs)
             elif method == 'GET':
                 response = self.req_sesh.get(url, **kwargs)
+            elif method == 'PUT':
+                response = self.req_sesh.put(url, **kwargs)
             else:
                 response = NotImplemented
             if response.status_code == 403 or response.status_code == 401:
@@ -118,15 +127,44 @@ class rBot:
         thing_info = self.handled_req('GET', f'{self.base}/api/info', params={"id": thing_id})
         return thing_info.json()['data']['children'][0]
 
-    def fetch_posts_from_subreddits(self, subs, limit):
+    def fetch_posts_from_subreddits(self, subs, limit, pagination=True):
+        if pagination and self.__pagination_before_specific:
+            params = {"limit": limit, "before": self.__pagination_before_specific}
+        else:
+            params = {"limit": limit}
         subs = '+'.join(subs)
-        posts_req = self.handled_req('GET', f'{self.base}/r/{subs}/new', params={"limit": limit})
+        posts_req = self.handled_req('GET', f'{self.base}/r/{subs}/new', params=params)
         posts = posts_req.json()["data"]["children"]
+
+        if pagination and bool(posts):
+            self.__pagination_before_specific = posts[0]["data"]["name"]
+
         for post in reversed(posts):
             the_post = rPost(post)
             if the_post.is_saved:
                 break
             yield the_post
+
+    def fetch_posts_from_all(self, limit, pagination=True):
+        if pagination and self.__pagination_before_all:
+            params = {"limit": limit, "before": self.__pagination_before_all}
+        else:
+            params = {"limit": limit}
+        posts_req = self.handled_req('GET', f'{self.base}/r/all/new', params=params)
+        posts = posts_req.json()["data"]["children"]
+
+        if pagination and bool(posts):
+            self.__pagination_before_all = posts[0]["data"]["name"]
+
+        for post in reversed(posts):
+            the_post = rPost(post)
+            if the_post.is_saved:
+                break
+            yield the_post
+
+    def exclude_from_all(self, sub):
+        data = {'model': f'{{"name":"{sub}"}}'}
+        self.handled_req('PUT', f'{self.base}/api/filter/user/tweetlinker/f/all/r/{sub}', data=data)
 
     def save_thing_by_id(self, thing_id):  # this for checking if the thing was seen before
         self.handled_req('POST', f'{self.base}/api/save', params={"id": thing_id})

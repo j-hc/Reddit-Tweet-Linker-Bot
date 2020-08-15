@@ -13,7 +13,7 @@ from db import tweet_database
 # Some stuff.. ------------------
 bad_bot_strs = ["bad bot", "kotu bot", "kötü bot"]
 good_bot_strs = ["good bot", "iyi bot", "güzel bot", "cici bot"]
-subs_listening = ["all"]
+subs_listening = ["turkey", "svihs"]
 score_listener_interval = 130
 sub_feed_listener_interval = 30
 notif_listener_interval = 10
@@ -50,20 +50,17 @@ def sub_feed_listener(job_q):
     try:
         # SUBREDDIT FEED CHECK
         while True:
-            last_submissions = twitterlinker.fetch_posts_from_subreddits(subs_listening, limit=50)
+            last_submissions = twitterlinker.fetch_posts_from_subreddits(subs_listening, limit=10)
+            last_submissions += twitterlinker.fetch_posts_from_all(limit=100)
             for last_submission in last_submissions:
-                # if not rUtils.check_if_already_post(last_submission, checked_posts, twitterlinker.bot_username):
-                if not last_submission.is_saved:
-                    twitterlinker.save_thing_by_id(last_submission.id_)
-                    if last_submission.is_img_post():
-                        job = twJob(to_answer=last_submission, the_post=last_submission, jtype=JobType.listing,
-                                    lang=last_submission.lang)
-                        job_q.put(job)
-                        print("(SFC)maybe a job: " + last_submission.id_ + " from " + last_submission.subreddit)
-                    else:
-                        print("(SFC)this's not a pic: " + last_submission.id_ + " from " + last_submission.subreddit)
-                # else:
-                    # print("(SFC)already: " + last_submission.id_, end=' |')
+                twitterlinker.save_thing_by_id(last_submission.id_)
+                if last_submission.is_img_post():
+                    job = twJob(to_answer=last_submission, the_post=last_submission, jtype=JobType.listing,
+                                lang=last_submission.lang)
+                    job_q.put(job)
+                    print("(SFC)maybe a job: " + last_submission.id_ + " from " + last_submission.subreddit)
+                else:
+                    print("(SFC)this's not a pic: " + last_submission.id_ + " from " + last_submission.subreddit)
             sleep(sub_feed_listener_interval)
     except:
         hata = traceback.format_exc()
@@ -303,7 +300,7 @@ def notif_job_builder(notif):
 
 
 if __name__ == "__main__":
-    twitterlinker = rBot(useragent, client_id, client_code, bot_username, bot_pass)
+    twitterlinker = rBot(useragent, client_id, client_code, bot_username, bot_pass, subs_listening)
 
     reply_q = queue.Queue()
     job_q = queue.Queue()
