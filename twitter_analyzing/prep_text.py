@@ -44,7 +44,7 @@ class TextPrep:
                                 break
 
             if not at:
-                print("@username gozukmuyor")
+                #print("@username gozukmuyor")
                 possible_at = None
                 if need_at:  # which means, called from a listing job
                     last_err = {"result": "error", "reason": Reasons.NO_AT}
@@ -52,7 +52,6 @@ class TextPrep:
                     continue
             else:
                 find_at = at
-                # if '.' in find_at or len(find_at) < 4:
                 if not bool(re.fullmatch(r"[A-Za-z0-9_]{4,15}", find_at)):
                     if not below_this:
                         below_this = at_dnm + 1
@@ -115,7 +114,7 @@ class TextPrep:
             if not possible_at and len(search_text.split()) <= 4:
                 if start_index != 0:
                     last_err = {"result": "error", "reason": Reasons.TOO_SHORT_NO_AT}
-                print("too short and there is no at")
+                #print("too short and there is no at")
                 start_index = at_dnm - 1
                 continue
 
@@ -124,8 +123,8 @@ class TextPrep:
             if len(search_text_s) < 45:
                 possibe_search_text.append(search_text)
 
-            slice_i = 2 if possible_at else 1.5
-            min_word_i = 3 if possible_at else 5
+            slice_i = 2 if possible_at and not need_at else 1.5
+            min_word_i = 3 if possible_at and not need_at else 5
             if len(search_text_s) >= min_word_i:
                 n_1 = ceil(len(search_text_s) / slice_i)
 

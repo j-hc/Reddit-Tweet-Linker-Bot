@@ -24,6 +24,15 @@ twJob = namedtuple('twJob', 'to_answer the_post jtype lang')
 replyJob = namedtuple('replyJob', 'text thing')
 
 
+class PriorityEntry:
+    def __init__(self, priority, data):
+        self.data = data
+        self.priority = priority
+
+    def __lt__(self, other):
+        return self.priority < other.priority
+
+
 class JobType(enum.Enum):
     normal = 1
     listing = 2
@@ -34,7 +43,7 @@ class JobType(enum.Enum):
 def score_listener():
     try:
         while True:
-            scores_id_d = twitterlinker.check_last_comment_scores()
+            scores_id_d = twitterlinker.check_last_comment_scores(limit=15)
             for score_id in scores_id_d:
                 if scores_id_d[score_id] <= -3:
                     twitterlinker.del_comment(score_id)
@@ -50,16 +59,26 @@ def sub_feed_listener(job_q):
     try:
         # SUBREDDIT FEED CHECK
         while True:
-            last_submissions = list(twitterlinker.fetch_posts_from_subreddits(subs_listening, limit=10))
-            last_submissions += list(twitterlinker.fetch_posts_from_all(limit=100))
-            for last_submission in last_submissions:
+            last_submissions_s = twitterlinker.fetch_posts_from_subreddits(subs_listening, limit=10)
+            for last_submission in last_submissions_s:
                 if last_submission.is_img_post():
                     job = twJob(to_answer=last_submission, the_post=last_submission, jtype=JobType.listing,
                                 lang=last_submission.lang)
-                    job_q.put(job)
+                    job_q.put((2, PriorityEntry(2, job)))
                     print("(SFC)maybe a job: " + last_submission.id_ + " from " + last_submission.subreddit)
                 else:
                     print("(SFC)this's not a pic: " + last_submission.id_ + " from " + last_submission.subreddit)
+
+            """last_submissions_a = twitterlinker.fetch_posts_from_all(limit=100)
+            for last_submission in last_submissions_a:
+                if last_submission.is_img_post():
+                    job = twJob(to_answer=last_submission, the_post=last_submission, jtype=JobType.listing,
+                                lang=last_submission.lang)
+                    job_q.put((3, PriorityEntry(3, job)))
+                    print("(SFC)maybe a job: " + last_submission.id_ + " from " + last_submission.subreddit)
+                else:
+                    print("(SFC)this's not a pic: " + last_submission.id_ + " from " + last_submission.subreddit)"""
+
             sleep(sub_feed_listener_interval)
     except:
         hata = traceback.format_exc()
@@ -80,7 +99,7 @@ def notif_listener(job_q):
                     job = notif_job_builder(notif)
                     if job != -1:
                         print(f"inbox checker: {notif.post_id} from {notif.subreddit}")
-                        job_q.put(job)
+                        job_q.put((1, PriorityEntry(1, job)))
             sleep(notif_listener_interval)
     except:
         hata = traceback.format_exc()
@@ -110,13 +129,9 @@ def reply_worker(reply_q):
 def job_handler(job_q, reply_q):
     try:
         while True:
-            twjob = job_q.get(block=True)
-            jtype = twjob.jtype
-            post = twjob.the_post
-            lang = twjob.lang
+            twjob = job_q.get(block=True)[1].data
             answer2 = twjob.to_answer
-
-            reply_built = reply_builder(lang=lang, post=post, jtype=jtype, author=answer2.author)
+            reply_built = reply_builder(lang=twjob.lang, post=twjob.the_post, jtype=twjob.jtype, author=answer2.author)
             if reply_built:
                 reply_job = replyJob(text=reply_built, thing=answer2)
                 reply_q.put(reply_job)
@@ -151,10 +166,12 @@ def reply_builder(lang, post, jtype, author):
                             username = search_twitter.get("username")
                             twitlink = search_twitter.get("twitlink")
                             user_id = search_twitter.get("user_id")
+                            found_index = search_twitter.get("found_index")
                             print("getting backup archive")
                             backup_link = Backup.capture_tweet_arch(twitlink)
 
-                            tweet_database.insert_data(user_id=user_id, twtext=possibe_search_text, backup_link=backup_link)
+                            tweet_database.insert_data(userid=user_id, twtext=possibe_search_text[found_index],
+                                                       backuplink=backup_link)
 
                             if total_detected_tweets >= 2:
                                 messagetxt += l_res["searched_among"].format(total_detected_tweets) + " "
@@ -164,14 +181,15 @@ def reply_builder(lang, post, jtype, author):
                             return_none = False
                             break
                         elif search_twitter_result == "error":
-                            print("prolly not a tweet: " + post.id_)
+                            pass
+                            # print("prolly not a tweet: " + post.id_)
                     if return_none:
                         return None
                 elif prepped_text_result == "error":
-                    print("prolly not a tweet: " + post.id_)
+                    # print("prolly not a tweet: " + post.id_)
                     return None
             else:
-                print("prolly not a tweet: " + post.id_)
+                # print("prolly not a tweet: " + post.id_)
                 return None
 
         elif jtype == JobType.normal:
@@ -196,10 +214,12 @@ def reply_builder(lang, post, jtype, author):
                                 twitlink = search_twitter.get("twitlink")
                                 atliatsiz = search_twitter.get("atliatsiz")
                                 user_id = search_twitter.get("user_id")
+                                found_index = search_twitter.get("found_index")
                                 print("getting backup archive")
                                 backup_link = Backup.capture_tweet_arch(twitlink)
 
-                                tweet_database.insert_data(user_id=user_id, twtext=possibe_search_text, backup_link=backup_link)
+                                tweet_database.insert_data(userid=user_id, twtext=possibe_search_text[found_index],
+                                                           backuplink=backup_link)
 
                                 if total_detected_tweets >= 2:
                                     messagetxt += l_res["searched_among"].format(total_detected_tweets) + " "
@@ -302,14 +322,14 @@ if __name__ == "__main__":
     twitterlinker = rBot(useragent, client_id, client_code, bot_username, bot_pass, subs_listening)
 
     reply_q = queue.Queue()
-    job_q = queue.Queue()
+    job_q = queue.PriorityQueue()
     reply_worker_t = threading.Thread(target=reply_worker, args=(reply_q,), daemon=True)
     job_handler_t = threading.Thread(target=job_handler, args=(job_q, reply_q), daemon=True)
     notif_listener_t = threading.Thread(target=notif_listener, args=(job_q,), daemon=True)
     sub_feed_listener_t = threading.Thread(target=sub_feed_listener, args=(job_q,), daemon=True)
     score_listener_t = threading.Thread(target=score_listener, daemon=True)
 
-    #reply_worker_t.start()
+    reply_worker_t.start()
     job_handler_t.start()
     notif_listener_t.start()
     sub_feed_listener_t.start()
@@ -317,8 +337,7 @@ if __name__ == "__main__":
 
     print("everything: OK")
     while True:
-        """if any(list(job_q.queue)) or any(list(reply_q.queue)):
-            print(f"\033[4msearching jobs: {[search.to_answer for search in list(job_q.queue)]}\033[0m")
-            print(f"\033[4mreplying jobs: {[replyy.thing for replyy in list(reply_q.queue)]}\033[0m")"""
-        print(len(job_q.queue))
-        sleep(2)
+        if any(list(job_q.queue)) or any(list(reply_q.queue)):
+            print(f"\033[4msearching jobs: {[search[1].data.to_answer for search in list(job_q.queue)]}\033[0m")
+            print(f"\033[4mreplying jobs: {[replyy.thing for replyy in list(reply_q.queue)]}\033[0m")
+        sleep(10)

@@ -1,7 +1,5 @@
 from .err_reasons import Reasons
 from .twitter_client import tw_client
-import sys
-sys.path.append('..')
 from db import tweet_database
 
 
@@ -21,8 +19,8 @@ class TWSearch:
                 if db_query:
                     return {"result": "success_db", "db_backup_link": db_query[0]}
                 continue
-            else:
-                print('\r\nFound yay: ' + tweet_link)
+
+            print('\r\nFound yay: ' + tweet_link)
             if at_dene is None:
                 found_tweetr = tweet_link.split('/')[3]
                 tweeter = found_tweetr
@@ -30,6 +28,7 @@ class TWSearch:
             else:
                 tweeter = at_dene
                 atsiz = False
-            return {"result": "success", "username": tweeter, "twitlink": tweet_link, "atliatsiz": atsiz, "user_id": user_id}
+            return {"result": "success", "username": tweeter, "twitlink": tweet_link,
+                    "atliatsiz": atsiz, "user_id": user_id, "found_index": possibe_search_text.index(search_text_use)}
 
         return {"result": "error", "reason": Reasons.DEFAULT}

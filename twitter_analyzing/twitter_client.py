@@ -75,8 +75,10 @@ class TwitterClient:
         )
         response_r = self.handled_get('https://api.twitter.com/2/search/adaptive.json', params=params)
         response = response_r.json(object_pairs_hook=OrderedDict)
-
-        tweets = response['globalObjects']['tweets']
+        try:
+            tweets = response['globalObjects']['tweets']
+        except:
+            print(response_r.text)
         users = response['globalObjects']['users']
         tweets_vals = list(tweets.values())
 

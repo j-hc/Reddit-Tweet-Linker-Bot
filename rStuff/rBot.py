@@ -128,15 +128,14 @@ class rBot:
         return thing_info.json()['data']['children'][0]
 
     def fetch_posts_from_subreddits(self, subs, limit, pagination=True, stop_if_saved=True):
+        params = {"limit": limit}
         if pagination and self.__pagination_before_specific:
-            params = {"limit": limit, "before": self.__pagination_before_specific}
-        else:
-            params = {"limit": limit}
+            params.update({"before": self.__pagination_before_specific})
         subs = '+'.join(subs)
         posts_req = self.handled_req('GET', f'{self.base}/r/{subs}/new', params=params)
         posts = posts_req.json()["data"]["children"]
 
-        for post_index in range(len(posts) - 1, -1, -1):
+        for post_index in range(0, len(posts)):
             the_post = rPost(posts[post_index])
             if the_post.is_saved and stop_if_saved:
                 break
@@ -147,14 +146,12 @@ class rBot:
             yield the_post
 
     def fetch_posts_from_all(self, limit, pagination=True, stop_if_saved=True):
+        params = {"limit": limit}
         if pagination and self.__pagination_before_all:
-            params = {"limit": limit, "before": self.__pagination_before_all}
-        else:
-            params = {"limit": limit}
+            params.update({"before": self.__pagination_before_all})
         posts_req = self.handled_req('GET', f'{self.base}/r/all/new', params=params)
         posts = posts_req.json()["data"]["children"]
-
-        for post_index in range(len(posts) - 1, -1, -1):
+        for post_index in range(0, len(posts)):
             the_post = rPost(posts[post_index])
             if the_post.is_saved and stop_if_saved:
                 break
@@ -166,7 +163,7 @@ class rBot:
 
     def exclude_from_all(self, sub):
         data = {'model': f'{{"name":"{sub}"}}'}
-        self.handled_req('PUT', f'{self.base}/api/filter/user/tweetlinker/f/all/r/{sub}', data=data)
+        self.handled_req('PUT', f'{self.base}/api/filter/user/{self.bot_username}/f/all/r/{sub}', data=data)
 
     def save_thing_by_id(self, thing_id):  # this for checking if the thing was seen before
         self.handled_req('POST', f'{self.base}/api/save', params={"id": thing_id})

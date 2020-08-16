@@ -43,11 +43,6 @@ class rPost:
         self.is_saved = content['saved']
         # self.listing = None  # true if from sub feed listener
 
-    def __eq__(self, other):
-        if self.id_ == other.id_:
-            return True
-        return False
-
     def __repr__(self):
         return f"(PostObject: {self.id_})"
 
