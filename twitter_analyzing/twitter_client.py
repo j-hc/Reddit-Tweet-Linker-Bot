@@ -38,11 +38,11 @@ class TwitterClient:
             try:
                 response = self.req_sesh.get(url, **kwargs)
             except (ConnectionError, ProtocolError):
-                sleep(2)
+                sleep(1)
                 self.get_gt_token()
                 continue
             if response.status_code == 403 or response.status_code == 429:
-                sleep(2)
+                sleep(1)
                 self.get_gt_token()
                 continue
             else:
@@ -77,9 +77,11 @@ class TwitterClient:
         response = response_r.json(object_pairs_hook=OrderedDict)
         try:
             tweets = response['globalObjects']['tweets']
+            users = response['globalObjects']['users']
         except:
             print(response_r.text)
-        users = response['globalObjects']['users']
+            return {}
+
         tweets_vals = list(tweets.values())
 
         if not bool(tweets):

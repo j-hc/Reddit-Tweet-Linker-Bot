@@ -50,10 +50,13 @@ class rBot:
                 response = self.req_sesh.put(url, **kwargs)
             else:
                 response = NotImplemented
-            if response.status_code == 403 or response.status_code == 401:
-                sleep(2)
+            if response.status_code == 403:
                 self.fetch_token()
                 continue
+            elif response.status_code == 401:
+                print(response.text)
+                with open('hata.txt', 'a') as f:
+                    f.write(response.text)
             else:
                 return response
 
@@ -107,7 +110,7 @@ class rBot:
             logger.info("message sent")
             return 0
 
-    def check_last_comment_scores(self, limit=5):
+    def check_last_comment_scores(self, limit=20):
         profile = self.handled_req('GET', f"{self.base}/user/{self.bot_username}/comments", params={"limit": limit})
         cm_bodies = profile.json()["data"]["children"]
         score_nd_id = {}
@@ -134,9 +137,14 @@ class rBot:
         subs = '+'.join(subs)
         posts_req = self.handled_req('GET', f'{self.base}/r/{subs}/new', params=params)
         posts = posts_req.json()["data"]["children"]
-
+        if not bool(posts):
+            self.__pagination_before_specific = None
+            params.update({"before": None})
+            return
         for post_index in range(0, len(posts)):
             the_post = rPost(posts[post_index])
+            if the_post.over_18:
+                continue
             if the_post.is_saved and stop_if_saved:
                 break
             if post_index == 0:
@@ -145,14 +153,19 @@ class rBot:
                     self.__pagination_before_specific = the_post.id_
             yield the_post
 
-    def fetch_posts_from_all(self, limit, pagination=True, stop_if_saved=True):
+    def fetch_posts_from_all(self, limit=100, pagination=True, stop_if_saved=True):
         params = {"limit": limit}
         if pagination and self.__pagination_before_all:
             params.update({"before": self.__pagination_before_all})
         posts_req = self.handled_req('GET', f'{self.base}/r/all/new', params=params)
         posts = posts_req.json()["data"]["children"]
+        if not bool(posts):
+            self.__pagination_before_all = None
+            return
         for post_index in range(0, len(posts)):
             the_post = rPost(posts[post_index])
+            if the_post.over_18:
+                continue
             if the_post.is_saved and stop_if_saved:
                 break
             if post_index == 0:

@@ -36,6 +36,7 @@ class rPost:
         self.author = content['author']  # author
         self.url = content['url']  # url
         self.subreddit = content['subreddit'].lower()
+        self.over_18 = content['over_18']
         if self.subreddit in turkish_subs:
             self.lang = 'tur'
         else:

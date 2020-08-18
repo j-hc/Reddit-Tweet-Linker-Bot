@@ -13,7 +13,7 @@ from db import tweet_database
 # Some stuff.. ------------------
 bad_bot_strs = ["bad bot", "kotu bot", "kötü bot"]
 good_bot_strs = ["good bot", "iyi bot", "güzel bot", "cici bot"]
-subs_listening = ["turkey", "svihs"]
+subs_listening = ["turkey", "svihs", "testyapiyorum", "whitepeopletwitter", "blackpeopletwitter", "kgbtr"]
 score_listener_interval = 130
 sub_feed_listener_interval = 30
 notif_listener_interval = 10
@@ -59,7 +59,7 @@ def sub_feed_listener(job_q):
     try:
         # SUBREDDIT FEED CHECK
         while True:
-            last_submissions_s = twitterlinker.fetch_posts_from_subreddits(subs_listening, limit=10)
+            last_submissions_s = twitterlinker.fetch_posts_from_subreddits(subs_listening, limit=100)
             for last_submission in last_submissions_s:
                 if last_submission.is_img_post():
                     job = twJob(to_answer=last_submission, the_post=last_submission, jtype=JobType.listing,
@@ -223,9 +223,13 @@ def reply_builder(lang, post, jtype, author):
 
                                 if total_detected_tweets >= 2:
                                     messagetxt += l_res["searched_among"].format(total_detected_tweets) + " "
+
                                 if atliatsiz:
-                                    messagetxt += l_res["couldnt_find_at"].format(username, twitlink) + "\r\n\n" + \
-                                                  l_res["archive_info"].format(backup_link)
+                                    if searching_for_tweet.no_at_variaton:
+                                        messagetxt += l_res["no_at_variation"].format(twitlink)
+                                    else:
+                                        messagetxt += l_res["couldnt_find_at"].format(username, twitlink)
+                                    messagetxt += "\r\n\n" + l_res["archive_info"].format(backup_link)
                                 elif not atliatsiz:
                                     messagetxt += l_res["success"].format(username, twitlink) + "\r\n\n" + \
                                                   l_res["archive_info"].format(backup_link)
@@ -340,4 +344,4 @@ if __name__ == "__main__":
         if any(list(job_q.queue)) or any(list(reply_q.queue)):
             print(f"\033[4msearching jobs: {[search[1].data.to_answer for search in list(job_q.queue)]}\033[0m")
             print(f"\033[4mreplying jobs: {[replyy.thing for replyy in list(reply_q.queue)]}\033[0m")
-        sleep(10)
+        sleep(18)

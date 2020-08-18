@@ -43,7 +43,7 @@ class TextPrep:
                                 at = extrct_at[0]
                                 break
 
-            if not at:
+            if at is None:
                 #print("@username gozukmuyor")
                 possible_at = None
                 if need_at:  # which means, called from a listing job
@@ -76,7 +76,7 @@ class TextPrep:
             # ------------------------------------------------
             if below_this:  # IF REPLY FOUND
                 ah = below_this
-            elif not at:  # IF AT NOT FOUND
+            elif at is None:  # IF AT NOT FOUND
                 ah = 0
             else:  # IF AT FOUND
                 ah = at_dnm + 1
@@ -100,7 +100,6 @@ class TextPrep:
             search_list = ' '.join(search_list).split()
             # search_list = [x for x in search_list if '#' not in x and x]  # clear from hashtags and NoneTypes
             search_list = [x for x in search_list if x]  # clear from NoneTypes if any
-            # search_text = ' '.join(search_list)
             search_text = ' '.join(filter(lambda w: len(w) > 2, search_list))
             search_text = re.sub(' +', ' ', search_text)
             # ------------------------------------------------
@@ -157,8 +156,6 @@ class TextPrep:
                 tweet_search_models.append(TextPrep.tweet_search_model(possible_at=None, possibe_search_text=[search_text],
                                                               no_at_variaton=True))
             start_index = at_dnm - 1
-        """if len(tweet_search_models) >= 2 and tweet_search_models[-1].possible_at is None:
-            tweet_search_models.pop(-1)"""
         if bool(tweet_search_models):
             return {"result": "success", "tweets2search": tweet_search_models, "total_detected_tweets": total_detected_tweets}
         elif last_err:
