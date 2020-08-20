@@ -9,12 +9,13 @@ import enum
 from collections import namedtuple
 import traceback
 from db import tweet_database
+from itertools import chain
 
 # Some stuff.. ------------------
 bad_bot_strs = ["bad bot", "kotu bot", "kötü bot"]
 good_bot_strs = ["good bot", "iyi bot", "güzel bot", "cici bot"]
-subs_listening = ["turkey", "svihs", "testyapiyorum", "whitepeopletwitter",
-                  "kgbtr", "me_irl", "gh_ben"]
+subs_listening_by_new = ["turkey", "svihs", "testyapiyorum", "kgbtr", "gh_ben"]
+subs_listening_by_rising = ["whitepeopletwitter", "me_irl"]
 score_listener_interval = 130
 sub_feed_listener_interval = 30
 notif_listener_interval = 10
@@ -60,8 +61,10 @@ def sub_feed_listener(job_q):
     try:
         # SUBREDDIT FEED CHECK
         while True:
-            last_submissions_s = twitterlinker.fetch_posts_from_own_multi(multiname="listening", limit=100)
-            for last_submission in last_submissions_s:
+            last_submissions_new = twitterlinker.fetch_posts_from_own_multi(multiname="listening", sort_by="new")
+            last_submissions_rising = twitterlinker.fetch_posts_from_own_multi(multiname="listening_rising", sort_by="rising")
+            last_submissions = chain(last_submissions_new, last_submissions_rising)
+            for last_submission in last_submissions:
                 if last_submission.is_img_post():
                     job = twJob(to_answer=last_submission, the_post=last_submission, jtype=JobType.listing,
                                 lang=last_submission.lang)
@@ -69,17 +72,6 @@ def sub_feed_listener(job_q):
                     print("(SFC)maybe a job: " + last_submission.id_ + " from " + last_submission.subreddit)
                 else:
                     print("(SFC)this's not a pic: " + last_submission.id_ + " from " + last_submission.subreddit)
-
-            """last_submissions_a = twitterlinker.fetch_posts_from_all(limit=100)
-            for last_submission in last_submissions_a:
-                if last_submission.is_img_post():
-                    job = twJob(to_answer=last_submission, the_post=last_submission, jtype=JobType.listing,
-                                lang=last_submission.lang)
-                    job_q.put((3, PriorityEntry(3, job)))
-                    print("(SFC)maybe a job: " + last_submission.id_ + " from " + last_submission.subreddit)
-                else:
-                    print("(SFC)this's not a pic: " + last_submission.id_ + " from " + last_submission.subreddit)"""
-
             sleep(sub_feed_listener_interval)
     except:
         hata = traceback.format_exc()
@@ -117,7 +109,7 @@ def reply_worker(reply_q):
             print("answer2: " + answer2.id_)
             replied = twitterlinker.send_reply(text=text, thing=answer2)
             if replied != 0:
-                reply_q.put(3, PriorityEntry(3, to_reply))
+                reply_q.put((3, PriorityEntry(3, to_reply)))
                 sleep(replied)
     except:
         hata = traceback.format_exc()
@@ -338,7 +330,8 @@ def notif_job_builder(notif):
 
 if __name__ == "__main__":
     twitterlinker = rBot(useragent, client_id, client_code, bot_username, bot_pass)
-    twitterlinker.create_or_update_multi(multiname="listening", subs=subs_listening)  # create the multi to listen to
+    twitterlinker.create_or_update_multi(multiname="listening", subs=subs_listening_by_new)  # create the multi to listen to
+    twitterlinker.create_or_update_multi(multiname="listening_rising", subs=subs_listening_by_rising)  # create the multi to listen to
 
     reply_q = queue.PriorityQueue()
     job_q = queue.PriorityQueue()

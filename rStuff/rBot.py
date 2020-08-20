@@ -137,7 +137,7 @@ class rBot:
         thing_info = self.handled_req('GET', f'{self.base}/api/info', params={"id": thing_id})
         return thing_info.json()['data']['children'][0]
 
-    def fetch_posts_from_subreddits(self, subs, limit, pagination=True, stop_if_saved=True, skip_if_nsfw=True, custom_uri=None):
+    def fetch_posts_from_subreddits(self, subs, limit=100, sort_by='new', pagination=True, stop_if_saved=True, skip_if_nsfw=True, custom_uri=None):
         params = {"limit": limit}
         if pagination and self.__pagination_before_specific:
             params.update({"before": self.__pagination_before_specific})
@@ -146,7 +146,7 @@ class rBot:
             uri = custom_uri
         else:
             subs = '+'.join(subs)
-            uri = f'{self.base}/r/{subs}/new'
+            uri = f'{self.base}/r/{subs}/{sort_by}'
 
         posts_req = self.handled_req('GET', uri, params=params)
         posts = posts_req.json()["data"]["children"]
@@ -166,9 +166,9 @@ class rBot:
                     self.__pagination_before_specific = the_post.id_
             yield the_post
 
-    def fetch_posts_from_own_multi(self, multiname, limit, **kwargs):
+    def fetch_posts_from_own_multi(self, multiname, **kwargs):
         uri = f"{self.base}/user/{self.bot_username}/m/{multiname}/new/"
-        return self.fetch_posts_from_subreddits(subs=None, limit=limit, custom_uri=uri, **kwargs)
+        return self.fetch_posts_from_subreddits(subs=None, custom_uri=uri, **kwargs)
 
     def fetch_posts_from_all(self, limit=100, pagination=True, stop_if_saved=True, skip_if_nsfw=True):
         params = {"limit": limit}
