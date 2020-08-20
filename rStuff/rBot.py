@@ -90,7 +90,7 @@ class rBot:
         ids = [notif.id_ for notif in notifs]
         ids = ','.join(ids)
         self.handled_req('POST', f"{self.base}/api/read_message", data={"id": ids})
-        logger.info(f"read the notifs")
+        logger.info(f"read the notifs: {str([x for x in notifs])}")
 
     def del_comment(self, thingid):
         self.handled_req('POST', f"{self.base}/api/del", data={"id": thingid})
@@ -141,7 +141,8 @@ class rBot:
             uri = custom_uri
         else:
             subs = '+'.join(subs)
-            uri = f'{self.base}/r/{subs}/{sort_by}'
+            uri = f"{self.base}/r/{subs}/"
+        uri += sort_by
 
         posts_req = self.handled_req('GET', uri, params=params)
         posts = posts_req.json()["data"]["children"]
@@ -162,7 +163,7 @@ class rBot:
             yield the_post
 
     def fetch_posts_from_own_multi(self, multiname, **kwargs):
-        uri = f"{self.base}/user/{self.bot_username}/m/{multiname}/new/"
+        uri = f"{self.base}/user/{self.bot_username}/m/{multiname}/"
         return self.fetch_posts_from_subreddits(subs=None, custom_uri=uri, **kwargs)
 
     def fetch_posts_from_all(self, limit=100, pagination=True, stop_if_saved=True, skip_if_nsfw=True):
