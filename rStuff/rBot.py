@@ -43,11 +43,6 @@ class rBot:
         self.req_sesh = self.prep_session()
         self.fetch_token()  # Fetch the token on instantioation (i cant spell for shit)
 
-        if exclude_from_all is None:
-            exclude_from_all = []
-        for sub in exclude_from_all:
-            self.exclude_from_all(sub)
-
     @sleep_and_retry
     @limits(calls=30, period=60)
     def handled_req(self, method, url, **kwargs):
@@ -209,4 +204,4 @@ class rBot:
             'model': f'{{"subreddits":[{subs_quoted}], "visibility":"{visibility}"}}'
         }
         self.handled_req('PUT', f"{self.base}/api/multi/user/{self.bot_username}/m/{multiname}", data=data)
-        logger.info('created or updated a multi')
+        logger.info(f'created or updated a multi named {multiname}')

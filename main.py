@@ -85,13 +85,15 @@ def notif_listener(job_q):
         # INBOX CHECK
         while True:
             notifs = list(twitterlinker.check_inbox(rkind='t1'))
-            if len(notifs) > 0:
-                twitterlinker.read_notifs(notifs)
-                for notif in notifs:
-                    job = notif_job_builder(notif)
-                    if job != -1:
-                        print(f"inbox checker: {notif.post_id} from {notif.subreddit}")
-                        job_q.put((1, PriorityEntry(1, job)))
+            first = False
+            for notif in notifs:
+                if first:
+                    twitterlinker.read_notifs(notifs)
+                    first = False
+                job = notif_job_builder(notif)
+                if job != -1:
+                    print(f"inbox checker: {notif.post_id} from {notif.subreddit}")
+                    job_q.put((1, PriorityEntry(1, job)))
             sleep(notif_listener_interval)
     except:
         hata = traceback.format_exc()
@@ -307,17 +309,21 @@ def notif_job_builder(notif):
             # BAD BOT
             if any(x in notif.body for x in bad_bot_strs):
                 if notif.parent_id in twitterlinker.already_thanked.list:
+                    twitterlinker.read_notifs(notif)
                     return -1
                 else:
                     twitterlinker.already_thanked.list.append(notif.parent_id)
+
                 job = twJob(to_answer=notif, the_post=None, jtype=JobType.badbot, lang=notif.lang)
                 return job
             # GOOD BOT
             elif any(x in notif.body for x in good_bot_strs):
                 if notif.parent_id in twitterlinker.already_thanked.list:
+                    twitterlinker.read_notifs(notif)
                     return -1
                 else:
                     twitterlinker.already_thanked.list.append(notif.parent_id)
+
                 job = twJob(to_answer=notif, the_post=None, jtype=JobType.goodbot, lang=notif.lang)
                 return job
         return -1
