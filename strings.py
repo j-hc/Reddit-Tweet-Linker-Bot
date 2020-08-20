@@ -2,9 +2,10 @@ en = {"introduction": "Im a bot and I find links to the twitter screenshots.",
       "hello": "Hi {0}!",
       "because": "I wasn't able to find anything for this because {0}",
       "couldnt_find_at": "I am not able to see who exactly tweeted (my guess is {0} tho). Nevertheless I tried: {1}",
-      "success": "tweeted by @{0} and the link should be: {1}",
-      "outro": "\r\n\n^[[my-owner](https://www.reddit.com/user/peroksizom),[source-code](https://github.com/scrubjay55/Reddit-Tweet-Linker-Bot)]"
-               "\r\n\n^you ^can ^downvote ^to ^remove",
+      "success": "this tweet by tweeted by @{0}, and the link is: {1}",
+      "outro": "\r\n\n^(if you think I should listen to the posts of some other sub as well:) ^[click](https://www.reddit.com/message/compose/?to={0}&subject=listen%20this&message=you-should-listen-to-this-sub:r/SUB)"
+               "\r\n\n^(feel free to downvote and I will delete this comment)"
+               "\r\n\n^[[my-owner](https://www.reddit.com/user/peroksizom),[source-code](https://github.com/scrubjay55/Reddit-Tweet-Linker-Bot)]",
       "archive_info": "I took a backup of the tweet on archive-org in case it gets deleted: [backup]({0})",
       "searched_among": "Here I see {0} tweets from valid usernames.",
       "db_query": "i couldn't find the tweet but it was in my database: {0}",
@@ -26,8 +27,9 @@ tr = {"introduction": "ben bir botum ve tweet screenshotlarının linklerini bul
       "because": "bunda bişe bulamadım çünkü {0}",
       "couldnt_find_at": "tweeti kimin attığı ss'den belli olmuyor (tahminim: {0}). ama yine de denedim ve yamulmuyorsam linki bu: {1}",
       "success": "tweeti @{0} atmış ve yamulmuyorsam linki de bu: {1}",
-      "outro": "\r\n\n^[[sahibim](https://www.reddit.com/user/peroksizom),[source-code](https://github.com/scrubjay55/Reddit-Tweet-Linker-Bot)]"
-               "\r\n\n^yanlıssa ^kaldırmak ^için ^downvotelayın ^:)",
+      "outro": "\r\n\n^(eğer başka bir subın postlarını da dinlemem gerektiğini düşünüyorsanız:) ^[tık](https://www.reddit.com/message/compose/?to={0}&subject=listen%20this&message=you-should-listen-to-this-sub:r/SUB)"
+               "\r\n\n^(downvotelayarak kaldırabilirsiniz)"
+               "\r\n\n^[[my-owner](https://www.reddit.com/user/peroksizom),[source-code](https://github.com/scrubjay55/Reddit-Tweet-Linker-Bot)]",
       "archive_info": "silinirse diye archive-org'da tweetin yedeğini de aldım: [yedek]({0})",
       "searched_among": "aramayı ss'de gördüğüm {0} tweette yaptım.",
       "db_query": "tweeti twitter'da bulamadım ama database'imde kayıtlıydı: {0}",

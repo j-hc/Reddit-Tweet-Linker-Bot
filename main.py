@@ -85,11 +85,9 @@ def notif_listener(job_q):
         # INBOX CHECK
         while True:
             notifs = list(twitterlinker.check_inbox(rkind='t1'))
-            first = False
+            if len(notifs) > 0:
+                twitterlinker.read_notifs(notifs)
             for notif in notifs:
-                if first:
-                    twitterlinker.read_notifs(notifs)
-                    first = False
                 job = notif_job_builder(notif)
                 if job != -1:
                     print(f"inbox checker: {notif.post_id} from {notif.subreddit}")
@@ -178,7 +176,7 @@ def reply_builder(lang, post, jtype, author):
                                 messagetxt += l_res["searched_among"].format(total_detected_tweets) + " "
                             messagetxt += l_res["success"].format(username, twitlink) + "\r\n\n" + l_res[
                                 "archive_info"].format(backup_link)
-                            messagetxt += l_res["outro"]
+                            messagetxt += l_res["outro"].format(twitterlinker.bot_username)
                             return_none = False
                             break
                         elif search_twitter_result == "error":
@@ -284,7 +282,7 @@ def reply_builder(lang, post, jtype, author):
                 print('called onto a text post')
                 reason_txt = "\r\n" + l_res["reason_no_image"]
                 messagetxt += l_res["because"].format(reason_txt)
-            messagetxt += l_res["outro"]
+            messagetxt += l_res["outro"].format(twitterlinker.bot_username)
         elif jtype == JobType.badbot:
             print("bad bot")
             messagetxt = l_res["badbot"]
@@ -309,7 +307,6 @@ def notif_job_builder(notif):
             # BAD BOT
             if any(x in notif.body for x in bad_bot_strs):
                 if notif.parent_id in twitterlinker.already_thanked.list:
-                    twitterlinker.read_notifs(notif)
                     return -1
                 else:
                     twitterlinker.already_thanked.list.append(notif.parent_id)
@@ -319,7 +316,6 @@ def notif_job_builder(notif):
             # GOOD BOT
             elif any(x in notif.body for x in good_bot_strs):
                 if notif.parent_id in twitterlinker.already_thanked.list:
-                    twitterlinker.read_notifs(notif)
                     return -1
                 else:
                     twitterlinker.already_thanked.list.append(notif.parent_id)

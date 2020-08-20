@@ -90,7 +90,7 @@ class rBot:
         ids = [notif.id_ for notif in notifs]
         ids = ','.join(ids)
         self.handled_req('POST', f"{self.base}/api/read_message", data={"id": ids})
-        logger.info("read the notif")
+        logger.info(f"read the notifs")
 
     def del_comment(self, thingid):
         self.handled_req('POST', f"{self.base}/api/del", data={"id": thingid})
