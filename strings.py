@@ -6,7 +6,7 @@ en = {"introduction": "Im a bot and I find links to the twitter screenshots.",
       "outro": "\r\n\n^[[my-owner](https://www.reddit.com/user/peroksizom),[source-code](https://github.com/scrubjay55/Reddit-Tweet-Linker-Bot)]"
                "\r\n\n^you ^can ^downvote ^to ^remove",
       "archive_info": "I took a backup of the tweet on archive-org in case it gets deleted: [backup]({0})",
-      "searched_among": "I searched among {0} tweets.",
+      "searched_among": "Here I see {0} tweets from valid usernames.",
       "db_query": "i couldn't find the tweet but it was in my database: {0}",
       "no_at_variation": "i was only able to find the tweet when I searched without username specified. and the link is: {0}",
       "badbot": "you can downvote me to remove :(",

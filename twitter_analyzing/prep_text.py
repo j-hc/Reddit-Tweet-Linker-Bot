@@ -56,6 +56,10 @@ class TextPrep:
                     if not below_this:
                         below_this = at_dnm + 1
                     possible_at = None
+                    if need_at:  # which means, called from a listing job
+                        last_err = {"result": "error", "reason": Reasons.NO_AT}
+                        start_index = at_dnm - 1
+                        continue
                 else:
                     account_status = tw_client.get_twitter_account_status(find_at)
                     if account_status == TWStatus.OK:
@@ -138,6 +142,7 @@ class TextPrep:
                     if len(strs[-1].split()) < min_word_i:
                         strs.pop(-1)
                     n_1 -= 1
+
                 strs.sort(key=lambda x: len(x.split()), reverse=True)
 
                 for str_ in strs:
@@ -147,15 +152,14 @@ class TextPrep:
             else:
                 strs = []
 
-            possibe_search_text = possibe_search_text + strs
+            possibe_search_text += strs
 
-            tweet_search_models.append(TextPrep.tweet_search_model(possible_at=possible_at, possibe_search_text=possibe_search_text,
-                                                          no_at_variaton=False))
+            tweet_search_models.append(TextPrep.tweet_search_model(possible_at=possible_at, possibe_search_text=possibe_search_text, no_at_variaton=False))
             total_detected_tweets += 1
-            if possible_at and len(search_text_s) > 5:
-                tweet_search_models.append(TextPrep.tweet_search_model(possible_at=None, possibe_search_text=[search_text],
-                                                              no_at_variaton=True))
+            if not need_at and possible_at and 45 > len(search_text_s) > 5:
+                tweet_search_models.append(TextPrep.tweet_search_model(possible_at=None, possibe_search_text=[search_text], no_at_variaton=True))
             start_index = at_dnm - 1
+
         if bool(tweet_search_models):
             return {"result": "success", "tweets2search": tweet_search_models, "total_detected_tweets": total_detected_tweets}
         elif last_err:

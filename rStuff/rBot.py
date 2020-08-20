@@ -19,14 +19,22 @@ class BlockAll(cookiejar.CookiePolicy):
     rfc2965 = hide_cookie2 = False
 
 
+class LimitedList:
+    def __init__(self):
+        self.list = []
+
+    def append(self, item):
+        self.list = self.list[:30]
+        self.list.append(item)
+
+
 class rBot:
     base = "https://oauth.reddit.com"
 
     def __init__(self, useragent, client_id, client_code, bot_username, bot_pass, exclude_from_all=None):
-        if exclude_from_all is None:
-            exclude_from_all = []
         self.__pagination_before_all = None
         self.__pagination_before_specific = None
+        self.already_thanked = LimitedList()
         self.useragent = useragent
         self.client_id = client_id
         self.client_code = client_code
@@ -35,6 +43,8 @@ class rBot:
         self.req_sesh = self.prep_session()
         self.fetch_token()  # Fetch the token on instantioation (i cant spell for shit)
 
+        if exclude_from_all is None:
+            exclude_from_all = []
         for sub in exclude_from_all:
             self.exclude_from_all(sub)
 
@@ -50,13 +60,10 @@ class rBot:
                 response = self.req_sesh.put(url, **kwargs)
             else:
                 response = NotImplemented
-            if response.status_code == 403:
+            if response.status_code == 403 or response.status_code == 401:
                 self.fetch_token()
+                sleep(0.7)
                 continue
-            elif response.status_code == 401:
-                print(response.text)
-                with open('hata.txt', 'a') as f:
-                    f.write(response.text)
             else:
                 return response
 
@@ -130,12 +137,18 @@ class rBot:
         thing_info = self.handled_req('GET', f'{self.base}/api/info', params={"id": thing_id})
         return thing_info.json()['data']['children'][0]
 
-    def fetch_posts_from_subreddits(self, subs, limit, pagination=True, stop_if_saved=True):
+    def fetch_posts_from_subreddits(self, subs, limit, pagination=True, stop_if_saved=True, skip_if_nsfw=True, custom_uri=None):
         params = {"limit": limit}
         if pagination and self.__pagination_before_specific:
             params.update({"before": self.__pagination_before_specific})
-        subs = '+'.join(subs)
-        posts_req = self.handled_req('GET', f'{self.base}/r/{subs}/new', params=params)
+
+        if custom_uri:
+            uri = custom_uri
+        else:
+            subs = '+'.join(subs)
+            uri = f'{self.base}/r/{subs}/new'
+
+        posts_req = self.handled_req('GET', uri, params=params)
         posts = posts_req.json()["data"]["children"]
         if not bool(posts):
             self.__pagination_before_specific = None
@@ -143,9 +156,9 @@ class rBot:
             return
         for post_index in range(0, len(posts)):
             the_post = rPost(posts[post_index])
-            if the_post.over_18:
+            if skip_if_nsfw and the_post.over_18:
                 continue
-            if the_post.is_saved and stop_if_saved:
+            if stop_if_saved and the_post.is_saved:
                 break
             if post_index == 0:
                 self.save_thing_by_id(the_post.id_)
@@ -153,7 +166,11 @@ class rBot:
                     self.__pagination_before_specific = the_post.id_
             yield the_post
 
-    def fetch_posts_from_all(self, limit=100, pagination=True, stop_if_saved=True):
+    def fetch_posts_from_own_multi(self, multiname, limit, **kwargs):
+        uri = f"{self.base}/user/{self.bot_username}/m/{multiname}/new/"
+        return self.fetch_posts_from_subreddits(subs=None, limit=limit, custom_uri=uri, **kwargs)
+
+    def fetch_posts_from_all(self, limit=100, pagination=True, stop_if_saved=True, skip_if_nsfw=True):
         params = {"limit": limit}
         if pagination and self.__pagination_before_all:
             params.update({"before": self.__pagination_before_all})
@@ -164,9 +181,9 @@ class rBot:
             return
         for post_index in range(0, len(posts)):
             the_post = rPost(posts[post_index])
-            if the_post.over_18:
+            if skip_if_nsfw and the_post.over_18:
                 continue
-            if the_post.is_saved and stop_if_saved:
+            if stop_if_saved and the_post.is_saved:
                 break
             if post_index == 0:
                 self.save_thing_by_id(the_post.id_)
@@ -181,3 +198,15 @@ class rBot:
     def save_thing_by_id(self, thing_id):  # this for checking if the thing was seen before
         self.handled_req('POST', f'{self.base}/api/save', params={"id": thing_id})
         logger.info(f'{thing_id} saved')
+
+    def create_or_update_multi(self, multiname, subs, visibility="private"):
+        subreddits_d = []
+        for sub in subs:
+            subreddits_d.append(f'{{"name":"{sub}"}}')
+        subs_quoted = ', '.join(subreddits_d)
+        data = {
+            'multipath': f'user/{self.bot_username}/m/{multiname}',
+            'model': f'{{"subreddits":[{subs_quoted}], "visibility":"{visibility}"}}'
+        }
+        self.handled_req('PUT', f"{self.base}/api/multi/user/{self.bot_username}/m/{multiname}", data=data)
+        logger.info('created or updated a multi')

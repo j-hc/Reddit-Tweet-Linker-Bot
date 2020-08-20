@@ -1,7 +1,7 @@
 rBase = "https://www.reddit.com"
 
 # Some stuff.. ------------------
-turkish_subs = ["turkey", "turkeyjerky", "testyapiyorum", "kgbtr", "svihs"]
+turkish_subs = ["turkey", "turkeyjerky", "testyapiyorum", "kgbtr", "svihs", "gh_ben"]
 # -------------------------------
 
 
@@ -16,7 +16,7 @@ class rNotif:
             self.lang = 'tur'
         else:
             self.lang = 'eng'
-        # self.parentid = content['parentid']  # the post or mentioner
+        self.parent_id = content['parent_id']  # the post or mentioner
         self.id_ = content['name']  # answer to this. represents the comment with t1 prefix
         self.rtype = content['type']  # comment_reply or user_mention
         context = content['context']  # /r/SUB/comments/POST_ID/TITLE/COMMENT_ID/

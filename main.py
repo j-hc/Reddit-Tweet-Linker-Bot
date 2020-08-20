@@ -13,7 +13,8 @@ from db import tweet_database
 # Some stuff.. ------------------
 bad_bot_strs = ["bad bot", "kotu bot", "kötü bot"]
 good_bot_strs = ["good bot", "iyi bot", "güzel bot", "cici bot"]
-subs_listening = ["turkey", "svihs", "testyapiyorum", "whitepeopletwitter", "blackpeopletwitter", "kgbtr"]
+subs_listening = ["turkey", "svihs", "testyapiyorum", "whitepeopletwitter",
+                  "kgbtr", "me_irl", "gh_ben"]
 score_listener_interval = 130
 sub_feed_listener_interval = 30
 notif_listener_interval = 10
@@ -43,7 +44,7 @@ class JobType(enum.Enum):
 def score_listener():
     try:
         while True:
-            scores_id_d = twitterlinker.check_last_comment_scores(limit=15)
+            scores_id_d = twitterlinker.check_last_comment_scores(limit=30)
             for score_id in scores_id_d:
                 if scores_id_d[score_id] <= -3:
                     twitterlinker.del_comment(score_id)
@@ -59,7 +60,7 @@ def sub_feed_listener(job_q):
     try:
         # SUBREDDIT FEED CHECK
         while True:
-            last_submissions_s = twitterlinker.fetch_posts_from_subreddits(subs_listening, limit=100)
+            last_submissions_s = twitterlinker.fetch_posts_from_own_multi(multiname="listening", limit=100)
             for last_submission in last_submissions_s:
                 if last_submission.is_img_post():
                     job = twJob(to_answer=last_submission, the_post=last_submission, jtype=JobType.listing,
@@ -91,8 +92,7 @@ def notif_listener(job_q):
     try:
         # INBOX CHECK
         while True:
-            notifs = twitterlinker.check_inbox(rkind='t1')
-            notifs = list(notifs)
+            notifs = list(twitterlinker.check_inbox(rkind='t1'))
             if len(notifs) > 0:
                 twitterlinker.read_notifs(notifs)
                 for notif in notifs:
@@ -111,13 +111,13 @@ def notif_listener(job_q):
 def reply_worker(reply_q):
     try:
         while True:
-            to_reply = reply_q.get(block=True)
+            to_reply = reply_q.get(block=True)[1].data
             answer2 = to_reply.thing
             text = to_reply.text
             print("answer2: " + answer2.id_)
             replied = twitterlinker.send_reply(text=text, thing=answer2)
             if replied != 0:
-                reply_q.put(to_reply)
+                reply_q.put(3, PriorityEntry(3, to_reply))
                 sleep(replied)
     except:
         hata = traceback.format_exc()
@@ -130,11 +130,18 @@ def job_handler(job_q, reply_q):
     try:
         while True:
             twjob = job_q.get(block=True)[1].data
+            jtype = twjob.jtype
             answer2 = twjob.to_answer
-            reply_built = reply_builder(lang=twjob.lang, post=twjob.the_post, jtype=twjob.jtype, author=answer2.author)
+            reply_built = reply_builder(lang=twjob.lang, post=twjob.the_post, jtype=jtype, author=answer2.author)
             if reply_built:
                 reply_job = replyJob(text=reply_built, thing=answer2)
-                reply_q.put(reply_job)
+                if jtype == JobType.normal:
+                    priority = 1
+                elif jtype == JobType.listing:
+                    priority = 2
+                else:
+                    priority = 3
+                reply_q.put((priority, PriorityEntry(priority, reply_job)))
     except:
         hata = traceback.format_exc()
         with open("hata.txt", "a") as hataf:
@@ -301,17 +308,24 @@ def reply_builder(lang, post, jtype, author):
 def notif_job_builder(notif):
     try:
         if notif.rtype == 'username_mention':
-            # post = rUtils.fetch_post_from_notif(notif)
             post = rPost(twitterlinker.get_info_by_id(notif.post_id))
             job = twJob(to_answer=notif, the_post=post, jtype=JobType.normal, lang=post.lang)
             return job
         elif notif.rtype == "comment_reply":
             # BAD BOT
             if any(x in notif.body for x in bad_bot_strs):
+                if notif.parent_id in twitterlinker.already_thanked.list:
+                    return -1
+                else:
+                    twitterlinker.already_thanked.list.append(notif.parent_id)
                 job = twJob(to_answer=notif, the_post=None, jtype=JobType.badbot, lang=notif.lang)
                 return job
             # GOOD BOT
             elif any(x in notif.body for x in good_bot_strs):
+                if notif.parent_id in twitterlinker.already_thanked.list:
+                    return -1
+                else:
+                    twitterlinker.already_thanked.list.append(notif.parent_id)
                 job = twJob(to_answer=notif, the_post=None, jtype=JobType.goodbot, lang=notif.lang)
                 return job
         return -1
@@ -323,9 +337,10 @@ def notif_job_builder(notif):
 
 
 if __name__ == "__main__":
-    twitterlinker = rBot(useragent, client_id, client_code, bot_username, bot_pass, subs_listening)
+    twitterlinker = rBot(useragent, client_id, client_code, bot_username, bot_pass)
+    twitterlinker.create_or_update_multi(multiname="listening", subs=subs_listening)  # create the multi to listen to
 
-    reply_q = queue.Queue()
+    reply_q = queue.PriorityQueue()
     job_q = queue.PriorityQueue()
     reply_worker_t = threading.Thread(target=reply_worker, args=(reply_q,), daemon=True)
     job_handler_t = threading.Thread(target=job_handler, args=(job_q, reply_q), daemon=True)
@@ -343,5 +358,5 @@ if __name__ == "__main__":
     while True:
         if any(list(job_q.queue)) or any(list(reply_q.queue)):
             print(f"\033[4msearching jobs: {[search[1].data.to_answer for search in list(job_q.queue)]}\033[0m")
-            print(f"\033[4mreplying jobs: {[replyy.thing for replyy in list(reply_q.queue)]}\033[0m")
+            print(f"\033[4mreplying jobs: {[replyy[1].data.thing for replyy in list(reply_q.queue)]}\033[0m")
         sleep(18)
