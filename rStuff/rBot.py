@@ -31,7 +31,7 @@ class LimitedList:
 class rBot:
     base = "https://oauth.reddit.com"
 
-    def __init__(self, useragent, client_id, client_code, bot_username, bot_pass, exclude_from_all=None):
+    def __init__(self, useragent, client_id, client_code, bot_username, bot_pass):
         self.__pagination_before_all = None
         self.__pagination_before_specific = None
         self.already_thanked = LimitedList()
@@ -55,10 +55,13 @@ class rBot:
                 response = self.req_sesh.put(url, **kwargs)
             else:
                 response = NotImplemented
-            if response.status_code == 403 or response.status_code == 401:
+            if response.status_code == 401:
                 self.fetch_token()
                 sleep(0.7)
                 continue
+            elif response.status_code == 403:
+                logger.warning("Forbidden")
+                break
             else:
                 return response
 
@@ -94,7 +97,7 @@ class rBot:
 
     def del_comment(self, thingid):
         self.handled_req('POST', f"{self.base}/api/del", data={"id": thingid})
-        logger.info("comment removed")
+        logger.info(f"comment removed: {thingid}")
 
     def send_reply(self, text, thing):
         data = {'api_type': 'json', 'return_rtjson': '1', 'text': text, "thing_id": thing.id_}
@@ -182,7 +185,8 @@ class rBot:
             if stop_if_saved and the_post.is_saved:
                 break
             if post_index == 0:
-                self.save_thing_by_id(the_post.id_)
+                if stop_if_saved:
+                    self.save_thing_by_id(the_post.id_)
                 if pagination:
                     self.__pagination_before_all = the_post.id_
             yield the_post

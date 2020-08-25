@@ -9,13 +9,11 @@ import enum
 from collections import namedtuple
 import traceback
 from db import tweet_database
-from itertools import chain
 
 # Some stuff.. ------------------
 bad_bot_strs = ["bad bot", "kotu bot", "kötü bot"]
 good_bot_strs = ["good bot", "iyi bot", "güzel bot", "cici bot"]
-subs_listening_by_new = ["turkey", "svihs", "testyapiyorum", "kgbtr", "gh_ben"]
-subs_listening_by_rising = ["whitepeopletwitter", "me_irl"]
+subs_listening_by_new = ["burdurland", "turkey", "svihs", "testyapiyorum", "kgbtr", "gh_ben"]
 score_listener_interval = 130
 sub_feed_listener_interval = 30
 notif_listener_interval = 10
@@ -62,9 +60,7 @@ def sub_feed_listener(job_q):
         # SUBREDDIT FEED CHECK
         while True:
             last_submissions_new = twitterlinker.fetch_posts_from_own_multi(multiname="listening", sort_by="new")
-            last_submissions_rising = twitterlinker.fetch_posts_from_own_multi(multiname="listening_rising", sort_by="rising")
-            last_submissions = chain(last_submissions_new, last_submissions_rising)
-            for last_submission in last_submissions:
+            for last_submission in last_submissions_new:
                 if last_submission.is_img_post():
                     job = twJob(to_answer=last_submission, the_post=last_submission, jtype=JobType.listing,
                                 lang=last_submission.lang)
@@ -84,9 +80,9 @@ def notif_listener(job_q):
     try:
         # INBOX CHECK
         while True:
-            notifs = list(twitterlinker.check_inbox(rkind='t1'))
+            notifs = twitterlinker.check_inbox(rkind='t1')
             if len(notifs) > 0:
-                twitterlinker.read_notifs(notifs)
+                twitterlinker.read_notifs(list(notifs))
             for notif in notifs:
                 job = notif_job_builder(notif)
                 if job != -1:
@@ -322,6 +318,8 @@ def notif_job_builder(notif):
 
                 job = twJob(to_answer=notif, the_post=None, jtype=JobType.goodbot, lang=notif.lang)
                 return job
+        else:
+            twitterlinker.read_notifs(notif.id_)
         return -1
     except:
         hata = traceback.format_exc()
@@ -333,7 +331,6 @@ def notif_job_builder(notif):
 if __name__ == "__main__":
     twitterlinker = rBot(useragent, client_id, client_code, bot_username, bot_pass)
     twitterlinker.create_or_update_multi(multiname="listening", subs=subs_listening_by_new)  # create the multi to listen to
-    twitterlinker.create_or_update_multi(multiname="listening_rising", subs=subs_listening_by_rising)  # create the multi to listen to
 
     reply_q = queue.PriorityQueue()
     job_q = queue.PriorityQueue()
