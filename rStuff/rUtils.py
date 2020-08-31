@@ -1,7 +1,7 @@
 rBase = "https://www.reddit.com"
 
 # Some stuff.. ------------------
-turkish_subs = ["turkey", "turkeyjerky", "testyapiyorum", "kgbtr", "svihs", "gh_ben"]
+turkish_subs = ["turkey", "turkeyjerky", "testyapiyorum", "kgbtr", "svihs", "gh_ben", "burdurland"]
 # -------------------------------
 
 
@@ -34,7 +34,16 @@ class rPost:
         self.id_ = content['name']  # answer to this. represents the post with t3 prefix
         self.is_self = content['is_self']  # text or not
         self.author = content['author']  # author
-        self.url = content['url']  # url
+
+        gallery_data = content.get('gallery_data')
+        if gallery_data is not None:
+            gallery_zero_id = gallery_data['items'][0]['media_id']
+            img_m = content['media_metadata'][gallery_zero_id]['m'].split('/')[-1]
+            self.url = f"https://i.redd.it/{gallery_zero_id}.{img_m}"
+            self.is_img = True
+        else:
+            self.url = content['url']  # url
+            self.is_img = self._is_img_post()
         self.subreddit = content['subreddit'].lower()
         self.over_18 = content['over_18']
         if self.subreddit in turkish_subs:
@@ -47,7 +56,7 @@ class rPost:
     def __repr__(self):
         return f"(PostObject: {self.id_})"
 
-    def is_img_post(self):
+    def _is_img_post(self):
         if not self.is_self and self.url.split(".")[-1].lower() in ["jpg", "jpeg", "png", "tiff", "bmp"]:
             return True
         else:

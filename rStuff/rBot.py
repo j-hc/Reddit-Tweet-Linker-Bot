@@ -123,13 +123,16 @@ class rBot:
             score_nd_id.update({cm_body["data"]["name"]: cm_body["data"]["score"]})
         return score_nd_id
 
-    def check_inbox(self, rkind):
+    def check_inbox(self, rkind, read_if_not_rkind=True):
         unread_notifs_req = self.handled_req('GET', f"{self.base}/message/unread")
         unread_notifs = unread_notifs_req.json()['data']['children']
 
         for unread_notif in unread_notifs:
+            the_notif = rNotif(unread_notif)
             if unread_notif['kind'] == rkind:
-                yield rNotif(unread_notif)
+                yield the_notif
+            elif read_if_not_rkind:
+                self.read_notifs(the_notif)
 
     def get_info_by_id(self, thing_id):
         thing_info = self.handled_req('GET', f'{self.base}/api/info', params={"id": thing_id})
@@ -160,7 +163,8 @@ class rBot:
             if stop_if_saved and the_post.is_saved:
                 break
             if post_index == 0:
-                self.save_thing_by_id(the_post.id_)
+                if stop_if_saved:
+                    self.save_thing_by_id(the_post.id_)
                 if pagination:
                     self.__pagination_before_specific = the_post.id_
             yield the_post

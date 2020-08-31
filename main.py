@@ -61,7 +61,7 @@ def sub_feed_listener(job_q):
         while True:
             last_submissions_new = twitterlinker.fetch_posts_from_own_multi(multiname="listening", sort_by="new")
             for last_submission in last_submissions_new:
-                if last_submission.is_img_post():
+                if last_submission.is_img:
                     job = twJob(to_answer=last_submission, the_post=last_submission, jtype=JobType.listing,
                                 lang=last_submission.lang)
                     job_q.put((2, PriorityEntry(2, job)))
@@ -80,9 +80,9 @@ def notif_listener(job_q):
     try:
         # INBOX CHECK
         while True:
-            notifs = twitterlinker.check_inbox(rkind='t1')
+            notifs = list(twitterlinker.check_inbox(rkind='t1'))
             if len(notifs) > 0:
-                twitterlinker.read_notifs(list(notifs))
+                twitterlinker.read_notifs(notifs)
             for notif in notifs:
                 job = notif_job_builder(notif)
                 if job != -1:
@@ -189,7 +189,7 @@ def reply_builder(lang, post, jtype, author):
 
         elif jtype == JobType.normal:
             messagetxt = l_res["hello"].format(author) + " " + l_res["introduction"] + "\r\n"
-            if post.is_img_post():
+            if post.is_img:
                 textt = OCR.vision_ocr(post.url)
                 if textt:
                     prepped_text = TextPrep.prep_text(textt, need_at=False)
@@ -305,6 +305,9 @@ def notif_job_builder(notif):
                 if notif.parent_id in twitterlinker.already_thanked.list:
                     return -1
                 else:
+                    dt = twitterlinker.get_info_by_id(notif.parent_id)
+                    if 'tşk' in dt.get('data').get('body') or 'tanks' in dt.get('data').get('body'):
+                        return -1
                     twitterlinker.already_thanked.list.append(notif.parent_id)
 
                 job = twJob(to_answer=notif, the_post=None, jtype=JobType.badbot, lang=notif.lang)
@@ -314,12 +317,15 @@ def notif_job_builder(notif):
                 if notif.parent_id in twitterlinker.already_thanked.list:
                     return -1
                 else:
+                    dt = twitterlinker.get_info_by_id(notif.parent_id)
+                    if 'kaldırmak' in dt.get('data').get('body') or 'to remove' in dt.get('data').get('body'):
+                        return -1
                     twitterlinker.already_thanked.list.append(notif.parent_id)
 
                 job = twJob(to_answer=notif, the_post=None, jtype=JobType.goodbot, lang=notif.lang)
                 return job
         else:
-            twitterlinker.read_notifs(notif.id_)
+            twitterlinker.read_notifs(notif)
         return -1
     except:
         hata = traceback.format_exc()
