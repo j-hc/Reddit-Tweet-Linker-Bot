@@ -1,0 +1,1 @@
+from .PyYandexOCR import PyYandexOCR

@@ -1,4 +1,5 @@
-from twitter_analyzing import Reasons, Backup, OCR, TextPrep, TWSearch
+from twitter_analyzing import Reasons, Backup, TextPrep, TWSearch
+from PyYandexOCR import PyYandexOCR
 from rStuff import rPost, rBot
 from info import useragent, client_id, client_code, bot_username, bot_pass
 from strings import tr, en
@@ -14,6 +15,7 @@ from db import tweet_database
 bad_bot_strs = ["bad bot", "kotu bot", "kötü bot"]
 good_bot_strs = ["good bot", "iyi bot", "güzel bot", "cici bot"]
 subs_listening_by_new = ["burdurland", "turkey", "svihs", "testyapiyorum", "kgbtr", "gh_ben"]
+# subs_listening_by_new = ["testyapiyorum"]
 score_listener_interval = 130
 sub_feed_listener_interval = 30
 notif_listener_interval = 10
@@ -142,7 +144,8 @@ def reply_builder(lang, post, jtype, author):
         l_res = tr if lang == "tur" else en
         if jtype == JobType.listing:
             messagetxt = "\r\n" + l_res["introduction"] + "\r\n"
-            textt = OCR.vision_ocr(post.url)
+            textt = yandex_ocr.get_ocr(post.url)
+            # print(textt)
             if textt:
                 prepped_text = TextPrep.prep_text(textt, need_at=True)
                 prepped_text_result = prepped_text.get("result")
@@ -190,7 +193,9 @@ def reply_builder(lang, post, jtype, author):
         elif jtype == JobType.normal:
             messagetxt = l_res["hello"].format(author) + " " + l_res["introduction"] + "\r\n"
             if post.is_img:
-                textt = OCR.vision_ocr(post.url)
+                # textt = OCR.vision_ocr(post.url)
+                textt = yandex_ocr.get_ocr(post.url)
+                # print(textt)
                 if textt:
                     prepped_text = TextPrep.prep_text(textt, need_at=False)
                     prepped_text_result = prepped_text.get("result")
@@ -306,9 +311,9 @@ def notif_job_builder(notif):
                     return -1
                 else:
                     dt = twitterlinker.get_info_by_id(notif.parent_id)
-                    if 'tşk' in dt.get('data').get('body') or 'tanks' in dt.get('data').get('body'):
-                        return -1
                     twitterlinker.already_thanked.list.append(notif.parent_id)
+                    if any(wrd in dt.get('data').get('body') for wrd in ['kaldırmak', 'to remove', 'tşk', 'tanks']):
+                        return -1
 
                 job = twJob(to_answer=notif, the_post=None, jtype=JobType.badbot, lang=notif.lang)
                 return job
@@ -318,14 +323,14 @@ def notif_job_builder(notif):
                     return -1
                 else:
                     dt = twitterlinker.get_info_by_id(notif.parent_id)
-                    if 'kaldırmak' in dt.get('data').get('body') or 'to remove' in dt.get('data').get('body'):
-                        return -1
                     twitterlinker.already_thanked.list.append(notif.parent_id)
+                    if any(wrd in dt.get('data').get('body') for wrd in ['kaldırmak', 'to remove', 'tşk', 'tanks']):
+                        return -1
 
                 job = twJob(to_answer=notif, the_post=None, jtype=JobType.goodbot, lang=notif.lang)
                 return job
         else:
-            twitterlinker.read_notifs(notif)
+            twitterlinker.read_notifs([notif])
         return -1
     except:
         hata = traceback.format_exc()
@@ -335,26 +340,21 @@ def notif_job_builder(notif):
 
 
 if __name__ == "__main__":
+    yandex_ocr = PyYandexOCR()
     twitterlinker = rBot(useragent, client_id, client_code, bot_username, bot_pass)
     twitterlinker.create_or_update_multi(multiname="listening", subs=subs_listening_by_new)  # create the multi to listen to
 
     reply_q = queue.PriorityQueue()
     job_q = queue.PriorityQueue()
-    reply_worker_t = threading.Thread(target=reply_worker, args=(reply_q,), daemon=True)
-    job_handler_t = threading.Thread(target=job_handler, args=(job_q, reply_q), daemon=True)
-    notif_listener_t = threading.Thread(target=notif_listener, args=(job_q,), daemon=True)
-    sub_feed_listener_t = threading.Thread(target=sub_feed_listener, args=(job_q,), daemon=True)
-    score_listener_t = threading.Thread(target=score_listener, daemon=True)
-
-    reply_worker_t.start()
-    job_handler_t.start()
-    notif_listener_t.start()
-    sub_feed_listener_t.start()
-    score_listener_t.start()
+    reply_worker_t = threading.Thread(target=reply_worker, args=(reply_q,), daemon=True).start()
+    job_handler_t = threading.Thread(target=job_handler, args=(job_q, reply_q), daemon=True).start()
+    notif_listener_t = threading.Thread(target=notif_listener, args=(job_q,), daemon=True).start()
+    sub_feed_listener_t = threading.Thread(target=sub_feed_listener, args=(job_q,), daemon=True).start()
+    score_listener_t = threading.Thread(target=score_listener, daemon=True).start()
 
     print("everything: OK")
     while True:
         if any(list(job_q.queue)) or any(list(reply_q.queue)):
             print(f"\033[4msearching jobs: {[search[1].data.to_answer for search in list(job_q.queue)]}\033[0m")
             print(f"\033[4mreplying jobs: {[replyy[1].data.thing for replyy in list(reply_q.queue)]}\033[0m")
-        sleep(18)
+        sleep(15)
