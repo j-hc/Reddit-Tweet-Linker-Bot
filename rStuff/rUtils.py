@@ -38,7 +38,10 @@ class rPost:
         gallery_data = content.get('gallery_data')
         if gallery_data is not None:
             gallery_zero_id = gallery_data['items'][0]['media_id']
-            img_m = content['media_metadata'][gallery_zero_id]['m'].split('/')[-1]
+            try:
+                img_m = content['media_metadata'][gallery_zero_id]['m'].split('/')[-1]
+            except:
+                img_m = 'jpg'
             self.url = f"https://i.redd.it/{gallery_zero_id}.{img_m}"
             self.is_img = True
         else:

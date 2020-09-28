@@ -48,8 +48,7 @@ class PyYandexOCR:
             return None
         params_ = {'lang': lang}
         files = {'file': ("file", img_raw, 'image/jpeg')}
-        response = self._handled_post('https://translate.yandex.net/ocr/v1.1/recognize',
-                                      params=params_, files=files, timeout=self.timeout)
+        response = self._handled_post('https://translate.yandex.net/ocr/v1.1/recognize', params=params_, files=files, timeout=self.timeout)
         resp_j = response.json()
 
         if resp_j.get('error') is not None:
@@ -59,12 +58,12 @@ class PyYandexOCR:
         if raw_response:
             return response
         else:
-            text = ""
+            text = []
             for block in resp_j['data']['blocks']:
                 boxes = block['boxes']
                 for box in boxes:
-                    text += box['text'] + '\n'
-            return text
+                    text.append(box['text'])
+            return '\n'.join(text)
 
     def _get_img_content(self, pic_url):
         for _ in range(2):
