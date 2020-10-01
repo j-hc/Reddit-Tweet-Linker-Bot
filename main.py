@@ -144,7 +144,11 @@ def reply_builder(lang, post, jtype, author):
         l_res = tr if lang == "tur" else en
         if jtype == JobType.listing:
             messagetxt = "\r\n" + l_res["introduction"] + "\r\n"
-            textt = yandex_ocr.get_ocr(post.url)
+            if post.is_gallery:
+                imgurl = post.gallery_media[0]
+            else:
+                imgurl = post.url
+            textt = yandex_ocr.get_ocr(imgurl)
             # print(textt)
             if textt:
                 prepped_text = TextPrep.prep_text(textt, need_at=True)
@@ -193,8 +197,11 @@ def reply_builder(lang, post, jtype, author):
         elif jtype == JobType.normal:
             messagetxt = l_res["hello"].format(author) + " " + l_res["introduction"] + "\r\n"
             if post.is_img:
-                # textt = OCR.vision_ocr(post.url)
-                textt = yandex_ocr.get_ocr(post.url)
+                if post.is_gallery:
+                    imgurl = post.gallery_media[0]
+                else:
+                    imgurl = post.url
+                textt = yandex_ocr.get_ocr(imgurl)
                 # print(textt)
                 if textt:
                     prepped_text = TextPrep.prep_text(textt, need_at=False)
@@ -340,6 +347,8 @@ def notif_job_builder(notif):
 
 
 if __name__ == "__main__":
+    # signal.signal(signal.SIGTERM, signal.SIG_IGN)  # FOR HEROKU
+
     yandex_ocr = PyYandexOCR()
     twitterlinker = rBot(useragent, client_id, client_code, bot_username, bot_pass)
     twitterlinker.create_or_update_multi(multiname="listening", subs=subs_listening_by_new)  # create the multi to listen to

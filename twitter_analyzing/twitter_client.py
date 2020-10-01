@@ -6,6 +6,7 @@ from http import cookiejar
 from requests.exceptions import ConnectionError
 from urllib3.exceptions import ProtocolError
 from time import sleep
+from info import twitter_client_proxy
 
 
 class TwitterClient:
@@ -49,7 +50,8 @@ class TwitterClient:
                 return response
 
     def get_gt_token(self):
-        response = requests.get('https://twitter.com/', headers={'User-Agent': 'Firefox'})
+
+        response = requests.get('https://twitter.com/', headers={'User-Agent': 'Firefox'}, proxies={'https': twitter_client_proxy})
         gt_token = re.search(b'gt=([0-9]*)', response.content).group(1)
         self.req_sesh.headers.update({"x-guest-token": gt_token.decode()})
 

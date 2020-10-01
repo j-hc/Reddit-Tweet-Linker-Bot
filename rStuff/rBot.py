@@ -132,7 +132,7 @@ class rBot:
             if unread_notif['kind'] == rkind:
                 yield the_notif
             elif read_if_not_rkind:
-                self.read_notifs(the_notif)
+                self.read_notifs([the_notif])
 
     def get_info_by_id(self, thing_id):
         thing_info = self.handled_req('GET', f'{self.base}/api/info', params={"id": thing_id})

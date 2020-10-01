@@ -9,19 +9,23 @@ class rNotif:
     def __init__(self, notif):
         # self.kind = notif['kind']  # kind
         content = notif['data']
-        self.author = content['author']  # summoner
-        self.body = content['body'].lower()  # body lowered
-        self.subreddit = content['subreddit'].lower()  # sub
+        self.author = content.get('author')  # summoner
+        self.body = content.get('body', "").lower()  # body lowered
+        self.subreddit = content.get('subreddit', "").lower()  # sub
         if self.subreddit in turkish_subs:
             self.lang = 'tur'
         else:
             self.lang = 'eng'
-        self.parent_id = content['parent_id']  # the post or mentioner
-        self.id_ = content['name']  # answer to this. represents the comment with t1 prefix
-        self.rtype = content['type']  # comment_reply or user_mention
-        context = content['context']  # /r/SUB/comments/POST_ID/TITLE/COMMENT_ID/
-        context_split = str(context).split('/')
-        self.post_id = 't3_' + context_split[4]  # post id with t3 prefix added
+        self.parent_id = content.get('parent_id')  # the post or mentioner
+        self.id_ = content.get('name')  # answer to this. represents the comment with t1 prefix
+        self.rtype = content.get('type')  # comment_reply or user_mention
+
+        try:
+            context = content['context']  # /r/SUB/comments/POST_ID/TITLE/COMMENT_ID/
+            context_split = str(context).split('/')
+            self.post_id = 't3_' + context_split[4]  # post id with t3 prefix added
+        except:
+            pass
         # self.id_no_prefix = context_split[6]  # comment id without t1 prefix
 
     def __repr__(self):
@@ -35,14 +39,20 @@ class rPost:
         self.is_self = content['is_self']  # text or not
         self.author = content['author']  # author
 
-        gallery_data = content.get('gallery_data')
-        if gallery_data is not None:
-            gallery_zero_id = gallery_data['items'][0]['media_id']
-            try:
-                img_m = content['media_metadata'][gallery_zero_id]['m'].split('/')[-1]
-            except:
-                img_m = 'jpg'
-            self.url = f"https://i.redd.it/{gallery_zero_id}.{img_m}"
+        if content.get('crosspost_parent_list') is not None:
+            gallery_content = content['crosspost_parent_list'][0]
+        else:
+            gallery_content = content
+        self.is_gallery = gallery_content.get('is_gallery', False)
+        if self.is_gallery:
+            self.gallery_media = []
+            for gd in gallery_content['gallery_data']['items']:
+                gallery_id = gd['media_id']
+                try:
+                    img_m = gallery_content['media_metadata'][gallery_id]['m'].split('/')[-1]
+                except KeyError:
+                    img_m = 'jpg'
+                self.gallery_media.append(f"https://i.redd.it/{gallery_id}.{img_m}")
             self.is_img = True
         else:
             self.url = content['url']  # url
