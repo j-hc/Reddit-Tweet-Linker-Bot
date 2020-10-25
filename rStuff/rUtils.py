@@ -40,6 +40,7 @@ class rPost:
         self.id_ = content['name']  # answer to this. represents the post with t3 prefix
         self.is_self = content['is_self']  # text or not
         self.author = content['author']  # author
+        self.is_removed = True if content['removed_by_category'] == "deleted" else False
 
         if content.get('crosspost_parent_list') is not None:
             gallery_content = content['crosspost_parent_list'][0]

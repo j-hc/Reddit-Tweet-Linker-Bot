@@ -1,6 +1,6 @@
 from twitter_analyzing import Reasons, Backup, TextPrep, TWSearch
 from PyYandexOCR import PyYandexOCR
-from rStuff import rPost, rBot
+from rStuff import rBot
 from info import useragent, client_id, client_code, bot_username, bot_pass
 from strings import tr, en
 from time import sleep
@@ -17,6 +17,12 @@ subs_listening_by_new = ["turkey", "svihs", "testyapiyorum", "kgbtr", "ateisttur
 score_listener_interval = 130
 sub_feed_listener_interval = 30
 notif_listener_interval = 10
+
+reply_q = queue.PriorityQueue()
+job_q = queue.PriorityQueue()
+
+twitterlinker = rBot(useragent, client_id, client_code, bot_username, bot_pass)
+yandex_ocr = PyYandexOCR()
 # -------------------------------
 
 
@@ -268,7 +274,7 @@ def reply_builder(lang, post, jtype, author):
 
 def notif_job_builder(notif):
     if notif.rtype == 'username_mention':
-        post = rPost(twitterlinker.get_info_by_id(notif.post_id))
+        post = twitterlinker.get_info_by_id(notif.post_id)
         job = twJob(to_answer=notif, the_post=post, jtype=JobType.normal, lang=post.lang)
         return job
     elif notif.rtype == "comment_reply":
@@ -278,10 +284,9 @@ def notif_job_builder(notif):
                 return -1
             else:
                 dt = twitterlinker.get_info_by_id(notif.parent_id)
-                twitterlinker.already_thanked.list.append(notif.parent_id)
-                if any(wrd in dt.get('data').get('body') for wrd in ['kaldırmak', 'to remove', 'tşk', 'tanks']):
+                twitterlinker.already_thanked.append_elem(notif.parent_id)
+                if any(wrd in dt["data"]["body"] for wrd in ['kaldır', 'to remove', 'tşk', 'tanks']):
                     return -1
-
             job = twJob(to_answer=notif, the_post=None, jtype=JobType.badbot, lang=notif.lang)
             return job
         # GOOD BOT
@@ -290,8 +295,8 @@ def notif_job_builder(notif):
                 return -1
             else:
                 dt = twitterlinker.get_info_by_id(notif.parent_id)
-                twitterlinker.already_thanked.list.append(notif.parent_id)
-                if any(wrd in dt.get('data').get('body') for wrd in ['kaldırmak', 'to remove', 'tşk', 'tanks']):
+                twitterlinker.already_thanked.append_elem(notif.parent_id)
+                if any(wrd in dt["data"]["body"] for wrd in ['kaldır', 'to remove', 'tşk', 'tanks']):
                     return -1
 
             job = twJob(to_answer=notif, the_post=None, jtype=JobType.goodbot, lang=notif.lang)
@@ -304,12 +309,8 @@ def notif_job_builder(notif):
 if __name__ == "__main__":
     # signal.signal(signal.SIGTERM, signal.SIG_IGN)  # FOR HEROKU
 
-    yandex_ocr = PyYandexOCR()
-    twitterlinker = rBot(useragent, client_id, client_code, bot_username, bot_pass)
     twitterlinker.create_or_update_multi(multiname="listening", subs=subs_listening_by_new)  # create the multi to listen to
 
-    reply_q = queue.PriorityQueue()
-    job_q = queue.PriorityQueue()
     reply_worker_t = threading.Thread(target=reply_worker, args=(reply_q,), daemon=True).start()
     job_handler_t = threading.Thread(target=job_handler, args=(job_q, reply_q), daemon=True).start()
     notif_listener_t = threading.Thread(target=notif_listener, args=(job_q,), daemon=True).start()

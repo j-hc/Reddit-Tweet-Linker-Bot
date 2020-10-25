@@ -23,7 +23,7 @@ class LimitedList:
     def __init__(self):
         self.list = []
 
-    def append(self, item):
+    def append_elem(self, item):
         self.list = self.list[:30]
         self.list.append(item)
 
@@ -34,6 +34,8 @@ class rBot:
     def __init__(self, useragent, client_id, client_code, bot_username, bot_pass):
         self.__pagination_before_all = None
         self.__pagination_before_specific = None
+        self._recent_answered = LimitedList()
+
         self.already_thanked = LimitedList()
         self.useragent = useragent
         self.client_id = client_id
@@ -135,12 +137,19 @@ class rBot:
                 self.read_notifs([the_notif])
 
     def get_info_by_id(self, thing_id):
-        thing_info = self.handled_req('GET', f'{self.base}/api/info', params={"id": thing_id})
-        return thing_info.json()['data']['children'][0]
+        # thing_info = self.handled_req('GET', f'{self.base}/api/info', params={"id": thing_id})
+        # return thing_info.json()['data']['children'][0]
+        thing_info = self.handled_req('GET', f'{self.base}/api/info', params={"id": thing_id}).json()
+        if not bool(thing_info["data"]["children"]):
+            return None
+        elif thing_info["data"]["children"][0]["kind"] == "t3":
+            return rPost(thing_info["data"]["children"][0])
+        else:
+            return thing_info
 
-    def fetch_posts_from_subreddits(self, subs, limit=100, sort_by='new', pagination=True, stop_if_saved=True, skip_if_nsfw=True, custom_uri=None):
+    def fetch_posts_from_subreddits(self, subs, limit=50, sort_by='new', pagination=True, stop_if_saved=True, skip_if_nsfw=True, custom_uri=None):
         params = {"limit": limit}
-        if pagination and self.__pagination_before_specific:
+        if pagination:
             params.update({"before": self.__pagination_before_specific})
 
         if custom_uri:
@@ -154,46 +163,49 @@ class rBot:
         posts = posts_req.json()["data"]["children"]
         if not bool(posts):
             self.__pagination_before_specific = None
-            params.update({"before": None})
             return
-        for post_index in range(0, len(posts)):
-            the_post = rPost(posts[post_index])
+        for index, post in enumerate(posts):
+            the_post = rPost(post)
+            if stop_if_saved and the_post.is_saved:
+                return
             if skip_if_nsfw and the_post.over_18:
                 continue
-            if stop_if_saved and the_post.is_saved:
-                break
-            if post_index == 0:
+            if index == 0:
                 if stop_if_saved:
                     self.save_thing_by_id(the_post.id_)
                 if pagination:
                     self.__pagination_before_specific = the_post.id_
+
+            if the_post.id_ in self._recent_answered.list:
+                continue
+            self._recent_answered.append_elem(the_post.id_)
             yield the_post
 
     def fetch_posts_from_own_multi(self, multiname, **kwargs):
         uri = f"{self.base}/user/{self.bot_username}/m/{multiname}/"
         return self.fetch_posts_from_subreddits(subs=None, custom_uri=uri, **kwargs)
 
-    def fetch_posts_from_all(self, limit=100, pagination=True, stop_if_saved=True, skip_if_nsfw=True):
-        params = {"limit": limit}
-        if pagination and self.__pagination_before_all:
-            params.update({"before": self.__pagination_before_all})
-        posts_req = self.handled_req('GET', f'{self.base}/r/all/new', params=params)
-        posts = posts_req.json()["data"]["children"]
-        if not bool(posts):
-            self.__pagination_before_all = None
-            return
-        for post_index in range(0, len(posts)):
-            the_post = rPost(posts[post_index])
-            if skip_if_nsfw and the_post.over_18:
-                continue
-            if stop_if_saved and the_post.is_saved:
-                break
-            if post_index == 0:
-                if stop_if_saved:
-                    self.save_thing_by_id(the_post.id_)
-                if pagination:
-                    self.__pagination_before_all = the_post.id_
-            yield the_post
+    # def fetch_posts_from_all(self, limit=100, pagination=True, stop_if_saved=True, skip_if_nsfw=True):
+    #     params = {"limit": limit}
+    #     if pagination and self.__pagination_before_all:
+    #         params.update({"before": self.__pagination_before_all})
+    #     posts_req = self.handled_req('GET', f'{self.base}/r/all/new', params=params)
+    #     posts = posts_req.json()["data"]["children"]
+    #     if not bool(posts):
+    #         self.__pagination_before_all = None
+    #         return
+    #     for post_index in range(0, len(posts)):
+    #         the_post = rPost(posts[post_index])
+    #         if skip_if_nsfw and the_post.over_18:
+    #             continue
+    #         if stop_if_saved and the_post.is_saved:
+    #             break
+    #         if post_index == 0:
+    #             if stop_if_saved:
+    #                 self.save_thing_by_id(the_post.id_)
+    #             if pagination:
+    #                 self.__pagination_before_all = the_post.id_
+    #         yield the_post
 
     def exclude_from_all(self, sub):
         data = {'model': f'{{"name":"{sub}"}}'}
