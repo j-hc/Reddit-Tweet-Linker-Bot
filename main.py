@@ -13,7 +13,7 @@ from db import tweet_database
 # Some stuff.. ------------------
 bad_bot_strs = ["bad bot", "kotu bot", "kötü bot"]
 good_bot_strs = ["good bot", "iyi bot", "güzel bot", "cici bot"]
-subs_listening_by_new = ["turkey", "svihs", "testyapiyorum", "kgbtr", "gh_ben", "ateistturk"]
+subs_listening_by_new = ["turkey", "svihs", "testyapiyorum", "kgbtr", "ateistturk"]
 score_listener_interval = 130
 sub_feed_listener_interval = 30
 notif_listener_interval = 10
