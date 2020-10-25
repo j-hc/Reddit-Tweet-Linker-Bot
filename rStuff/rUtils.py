@@ -1,7 +1,7 @@
 rBase = "https://www.reddit.com"
 
 # Some stuff.. ------------------
-turkish_subs = ["turkey", "turkeyjerky", "testyapiyorum", "kgbtr", "svihs", "gh_ben", "burdurland"]
+turkish_subs = ["turkey", "turkeyjerky", "testyapiyorum", "kgbtr", "svihs", "gh_ben", "burdurland", "ateistturk"]
 # -------------------------------
 
 
@@ -11,7 +11,9 @@ class rNotif:
         content = notif['data']
         self.author = content.get('author')  # summoner
         self.body = content.get('body', "").lower()  # body lowered
-        self.subreddit = content.get('subreddit', "").lower()  # sub
+        self.subreddit = content.get('subreddit', "")  # sub
+        if self.subreddit is not None:
+            self.subreddit = self.subreddit.lower()
         if self.subreddit in turkish_subs:
             self.lang = 'tur'
         else:

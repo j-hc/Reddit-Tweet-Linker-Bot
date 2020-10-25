@@ -8,7 +8,7 @@ from .twitter_client import tw_client
 
 class TextPrep:
     replying_to = ["antwort an", "replying to", " adlı kişiye", " adlı kullanıcılara", "svar till"]
-    endhere = ['Twitter for', 'Translate Tweet', 'Twitter Web App', 'PM - ', '20 - ', '19 - ', 'for iOS', 'for Android',
+    endhere = ['Twitter for', 'Translate Tweet', 'Tweeti Çevir', 'Twitter Web App', 'PM - ', '20 - ', '19 - ', 'for iOS', 'for Android',
                ' · ', ' Translate from ', 'Tweet your reply', 'Show this thread', 'Yanıtını Tweetle', ' - 1', ' - 2',
                ' - 3', 'dilinden Google tarafından']
     tweet_search_model = namedtuple("tweet_search_model", "possible_at possibe_search_text no_at_variaton")
@@ -123,6 +123,7 @@ class TextPrep:
 
             possibe_search_text = []
             search_text_s = search_text.split()
+
             if len(search_text_s) < 45:
                 possibe_search_text.append(search_text)
 
@@ -134,6 +135,7 @@ class TextPrep:
                 z_len_s = 100
                 f_len_s = 0
                 strs = []
+
                 while z_len_s > min_word_i and f_len_s < 45:
                     strs += [' '.join(search_text_s[i:i + n_1]) for i in range(0, len(search_text_s), n_1)]
                     z_len_s = len(strs[-2].split())
@@ -143,11 +145,9 @@ class TextPrep:
                         strs.pop(-1)
                     n_1 -= 1
 
+                strs = set(strs)
+                strs = list(filter(lambda str_: len(str_.replace(' ', '')) >= 8, strs))
                 strs.sort(key=lambda x: len(x.split()), reverse=True)
-
-                for str_ in strs:
-                    if len(str_.replace(' ', '')) < 8:
-                        strs.remove(str_)
 
             else:
                 strs = []
