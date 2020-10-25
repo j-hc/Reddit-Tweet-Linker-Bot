@@ -285,7 +285,7 @@ def notif_job_builder(notif):
             else:
                 dt = twitterlinker.get_info_by_id(notif.parent_id)
                 twitterlinker.already_thanked.append_elem(notif.parent_id)
-                if any(wrd in dt["data"]["body"] for wrd in ['kaldır', 'to remove', 'tşk', 'tanks']):
+                if any(wrd in dt['data']['children'][0]["data"]["body"].lower() for wrd in ['kaldır', 'to remove', 'tşk', 'tanks']):
                     return -1
             job = twJob(to_answer=notif, the_post=None, jtype=JobType.badbot, lang=notif.lang)
             return job
@@ -296,7 +296,7 @@ def notif_job_builder(notif):
             else:
                 dt = twitterlinker.get_info_by_id(notif.parent_id)
                 twitterlinker.already_thanked.append_elem(notif.parent_id)
-                if any(wrd in dt["data"]["body"] for wrd in ['kaldır', 'to remove', 'tşk', 'tanks']):
+                if any(wrd in dt['data']['children'][0]["data"]["body"].lower() for wrd in ['kaldır', 'to remove', 'tşk', 'tanks']):
                     return -1
 
             job = twJob(to_answer=notif, the_post=None, jtype=JobType.goodbot, lang=notif.lang)
@@ -307,8 +307,6 @@ def notif_job_builder(notif):
 
 
 if __name__ == "__main__":
-    # signal.signal(signal.SIGTERM, signal.SIG_IGN)  # FOR HEROKU
-
     twitterlinker.create_or_update_multi(multiname="listening", subs=subs_listening_by_new)  # create the multi to listen to
 
     reply_worker_t = threading.Thread(target=reply_worker, args=(reply_q,), daemon=True).start()
