@@ -285,7 +285,7 @@ def notif_job_builder(notif):
             else:
                 dt = twitterlinker.get_info_by_id(notif.parent_id)
                 twitterlinker.already_thanked.append_elem(notif.parent_id)
-                if any(wrd in dt['data']['children'][0]["data"]["body"].lower() for wrd in ['kaldır', 'to remove', 'tşk', 'tanks']):
+                if any(wrd in dt['data']['children'][0]["data"]["body"].lower() for wrd in [':(', 'to remove', 'tşk', 'tanks']):
                     return -1
             job = twJob(to_answer=notif, the_post=None, jtype=JobType.badbot, lang=notif.lang)
             return job
@@ -296,7 +296,7 @@ def notif_job_builder(notif):
             else:
                 dt = twitterlinker.get_info_by_id(notif.parent_id)
                 twitterlinker.already_thanked.append_elem(notif.parent_id)
-                if any(wrd in dt['data']['children'][0]["data"]["body"].lower() for wrd in ['kaldır', 'to remove', 'tşk', 'tanks']):
+                if any(wrd in dt['data']['children'][0]["data"]["body"].lower() for wrd in [':(', 'to remove', 'tşk', 'tanks']):
                     return -1
 
             job = twJob(to_answer=notif, the_post=None, jtype=JobType.goodbot, lang=notif.lang)
