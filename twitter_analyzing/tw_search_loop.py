@@ -1,6 +1,6 @@
 from .err_reasons import Reasons
 from .twitter_client import tw_client
-from db import tweet_database
+# from db import tweet_database
 
 
 class TWSearch:
@@ -14,11 +14,11 @@ class TWSearch:
             tweet_dict = tw_client.search_tweet(tweet_text=search_text_use, from_whom=at_dene, lang=lang)
             tweet_link = tweet_dict.get('link')
             user_id = tweet_dict.get('user_id')
-            if tweet_link is None:
-                db_query = tweet_database.a_query(user_id, search_text_use)
-                if db_query:
-                    return {"result": "success_db", "db_backup_link": db_query[0]}
-                continue
+            # if tweet_link is None:
+            #     db_query = tweet_database.a_query(user_id, search_text_use)
+            #     if db_query:
+            #         return {"result": "success_db", "db_backup_link": db_query[0]}
+            #     continue
 
             print('\r\nFound yay: ' + tweet_link)
             if at_dene is None:

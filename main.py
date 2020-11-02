@@ -8,7 +8,7 @@ import queue
 import threading
 import enum
 from collections import namedtuple
-from db import tweet_database
+# from db import tweet_database
 
 # Some stuff.. ------------------
 bad_bot_strs = ["bad bot", "kotu bot", "kötü bot"]
@@ -144,8 +144,8 @@ def reply_builder(lang, post, jtype, author):
                         print("getting backup archive")
                         backup_link = Backup.capture_tweet_arch(twitlink)
 
-                        tweet_database.insert_data(userid=user_id, twtext=possibe_search_text[found_index],
-                                                   backuplink=backup_link)
+                        # tweet_database.insert_data(userid=user_id, twtext=possibe_search_text[found_index],
+                        #                            backuplink=backup_link)
 
                         if total_detected_tweets >= 2:
                             messagetxt += l_res["searched_among"].format(total_detected_tweets) + " "
@@ -197,8 +197,8 @@ def reply_builder(lang, post, jtype, author):
                             print("getting backup archive")
                             backup_link = Backup.capture_tweet_arch(twitlink)
 
-                            tweet_database.insert_data(userid=user_id, twtext=possibe_search_text[found_index],
-                                                       backuplink=backup_link)
+                            # tweet_database.insert_data(userid=user_id, twtext=possibe_search_text[found_index],
+                            #                            backuplink=backup_link)
 
                             if total_detected_tweets >= 2:
                                 messagetxt += l_res["searched_among"].format(total_detected_tweets) + " "

@@ -1,3 +1,3 @@
 from .DB import TweetDB
 
-tweet_database = TweetDB()
+# tweet_database = TweetDB()
