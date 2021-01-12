@@ -1,10 +1,11 @@
 venv
+tests
+test.py
 __pycache__
 .idea
 inf_.py
-test.py
 cs.json
 rbot.log
 rutil.log
 db/TweetDB.db
-test2.py
+main_old.py

@@ -8,5 +8,8 @@ class Backup:
             'url': url,
             'capture_all': 'on'
         }
-        requests.post(f'http://web.archive.org/save/{url}', data=data)
+        try:
+            requests.post(f'http://web.archive.org/save/{url}', data=data)
+        except:
+            pass
         return f"https://web.archive.org/web/submit?url={url}"

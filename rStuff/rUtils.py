@@ -49,14 +49,18 @@ class rPost:
         self.is_gallery = gallery_content.get('is_gallery', False)
         if self.is_gallery:
             self.gallery_media = []
-            for gd in gallery_content['gallery_data']['items']:
-                gallery_id = gd['media_id']
-                try:
-                    img_m = gallery_content['media_metadata'][gallery_id]['m'].split('/')[-1]
-                except KeyError:
-                    img_m = 'jpg'
-                self.gallery_media.append(f"https://i.redd.it/{gallery_id}.{img_m}")
-            self.is_img = True
+            self.is_img = False
+            try:
+                for gd in gallery_content.get('gallery_data', {}).get('items', {}):
+                    gallery_id = gd['media_id']
+                    try:
+                        img_m = gallery_content['media_metadata'][gallery_id]['m'].split('/')[-1]
+                    except KeyError:
+                        img_m = 'jpg'
+                    self.gallery_media.append(f"https://i.redd.it/{gallery_id}.{img_m}")
+                    self.is_img = True
+            except AttributeError:
+                self.is_img = False
         else:
             self.url = content['url']  # url
             self.is_img = self._is_img_post()
@@ -67,7 +71,6 @@ class rPost:
         else:
             self.lang = 'eng'
         self.is_saved = content['saved']
-        # self.listing = None  # true if from sub feed listener
 
     def __repr__(self):
         return f"(PostObject: {self.id_})"

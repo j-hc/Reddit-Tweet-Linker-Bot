@@ -5,7 +5,6 @@ from .TW_user_status import TWStatus
 from http import cookiejar
 from requests.exceptions import ConnectionError
 from urllib3.exceptions import ProtocolError
-from time import sleep
 from info import twitter_client_proxy
 
 
@@ -18,17 +17,18 @@ class TwitterClient:
     TWITTER_PUBLIC_TOKEN = "AAAAAAAAAAAAAAAAAAAAANRILgAAAAAAnNwIzUejRCOuH5E6I8xnZz4puTs" \
                            "%3D1Zv7ttfk8LF81IUq16cHjhLTvJu4FA33AGWWjCpTnA"
 
-    def __init__(self):
-        self.req_sesh = TwitterClient.prep_session()
-        self.get_gt_token()
+    HOST = "https://api.twitter.com"
 
-    @staticmethod
-    def prep_session():
+    def __init__(self):
+        self.req_sesh = self.prep_session()
+        self._get_gt_token()
+
+    def prep_session(self):
         req_sesh = requests.Session()
         req_sesh.cookies.set_policy(TwitterClient.BlockAll())
         req_sesh.headers = {
             'authorization': f'Bearer {TwitterClient.TWITTER_PUBLIC_TOKEN}',
-            'User-Agent': "Firefox",
+            'User-Agent': "Mozilla/5.0 Gecko/20100101 Firefox/81.0",
             'Accept-Encoding': None,
             'Accept': None
         }
@@ -39,27 +39,27 @@ class TwitterClient:
             try:
                 response = self.req_sesh.get(url, **kwargs)
             except (ConnectionError, ProtocolError):
-                sleep(1)
-                self.get_gt_token()
+                self._get_gt_token()
                 continue
             if response.status_code == 403 or response.status_code == 429:
-                sleep(1)
-                self.get_gt_token()
+                self._get_gt_token()
                 continue
             else:
                 return response
 
-    def get_gt_token(self):
+    def _get_gt_token(self):
+        response = requests.get('https://twitter.com/', headers={'User-Agent': 'Mozilla/5.0 Gecko/20100101 Firefox/80.0'}, proxies={'https': twitter_client_proxy})
+        gt_token = re.search(b'gt=([0-9]*)', response.content).group(1).decode()
+        self.req_sesh.headers.update({"x-guest-token": gt_token})
 
-        response = requests.get('https://twitter.com/', headers={'User-Agent': 'Firefox'}, proxies={'https': twitter_client_proxy})
-        gt_token = re.search(b'gt=([0-9]*)', response.content).group(1)
-        self.req_sesh.headers.update({"x-guest-token": gt_token.decode()})
-
-    def search_tweet(self, tweet_text, from_whom, lang):
+    def search_tweet(self, tweet_text, from_whom, lang, exact_phrase=True):
+        if exact_phrase:
+            tweet_text = '"' + tweet_text + '"'
         if from_whom:
             query = f'{tweet_text} (from:{from_whom}) exclude:retweets'
         else:
             query = f'{tweet_text} exclude:retweets'
+
         if lang == "tur":
             self.req_sesh.headers.update({'Accept-Language': "tr-TR,tr;q=0.5"})
         else:
@@ -75,44 +75,56 @@ class TwitterClient:
             ('tweet_mode', 'compat'), ('include_entities', 'false'), ('include_user_entities', 'false'),
             ('send_error_codes', 'true'), ('simple_quoted_tweet', 'false'), ('query_source', ''), ('pc', '1'),
         )
-        response_r = self.handled_get('https://api.twitter.com/2/search/adaptive.json', params=params)
+        response_r = self.handled_get(f'{TwitterClient.HOST}/2/search/adaptive.json', params=params)
         response = response_r.json(object_pairs_hook=OrderedDict)
         try:
             tweets = response['globalObjects']['tweets']
             users = response['globalObjects']['users']
         except:
-            print(response_r.text)
             return {}
 
         tweets_vals = list(tweets.values())
+        len_tweets = len(tweets)
 
         if not bool(tweets):
             return {}
 
+        b_could_be_quote = False
         the_tweet = None
+        break_out_of_nested_loops = False
         if from_whom:
             for tweet in tweets:
                 for user in users:
                     if users[user]['screen_name'] == from_whom and tweets[tweet]['user_id_str'] == user:
                         the_tweet = tweets[tweet]
+                        if the_tweet['is_quote_status'] and len_tweets == 2:
+                            b_could_be_quote = True
+                        break_out_of_nested_loops = True
                         break
+                if break_out_of_nested_loops:
+                    break
         else:
-            if (tweets_vals[0].get("is_quote_status") and len(tweets) < 3) or (
-                    len(tweets) == 2 and tweets_vals[1].get("self_thread")):
-                the_tweet = tweets_vals[0]
+            if (tweets_vals[0].get("is_quote_status") and len_tweets < 3) or (len_tweets == 2 and (tweets_vals[1].get("self_thread") or tweets_vals[1].get("conversation_id"))):
+                tweet_index_i = 0
             else:
-                the_tweet = tweets_vals[-1]
+                tweet_index_i = -1
+            # if len_tweets == 2 and tweets_vals[1].get("is_quote_status"):
+            if tweets_vals[0].get("is_quote_status") and len_tweets < 3:
+                b_could_be_quote = True
+            the_tweet = tweets_vals[tweet_index_i]
+
         if not the_tweet:
             return {}
+
         tweet_id = the_tweet['id_str']
         user_id_str = the_tweet['user_id_str']
         the_user_id = users[user_id_str]
         the_user_name = the_user_id['screen_name']
-        return {"link": f"https://twitter.com/{the_user_name}/status/{tweet_id}", "user_id": user_id_str}
+        return {"link": f"https://twitter.com/{the_user_name}/status/{tweet_id}", "user_id": user_id_str, "b_could_be_quote": b_could_be_quote}
 
     def get_twitter_account_status(self, username):
         params = ('variables', f'{{"screen_name":"{username}","withHighlightedLabel":true}}'),
-        response = self.handled_get('https://api.twitter.com/graphql/-xfUfZsnR_zqjFd-IfrN5A/UserByScreenName',
+        response = self.handled_get(f'{TwitterClient.HOST}/graphql/-xfUfZsnR_zqjFd-IfrN5A/UserByScreenName',
                                     params=params).json()
         if response.get('errors'):
             if response['errors'][0]['code'] == 63:
@@ -123,6 +135,3 @@ class TwitterClient:
             return TWStatus.PROTECTED
         else:
             return TWStatus.OK
-
-
-tw_client = TwitterClient()

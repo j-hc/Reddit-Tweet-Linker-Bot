@@ -6,7 +6,8 @@ from .rUtils import rNotif, rBase, rPost
 from urllib3.util.retry import Retry
 from requests.adapters import HTTPAdapter
 from ratelimit import sleep_and_retry, limits
-from time import sleep
+from time import sleep, time
+from .PostFetcher import PostFetcher
 
 logging.basicConfig(level=logging.INFO, datefmt='%H:%M',
                     format='%(asctime)s, [%(filename)s:%(lineno)d] %(funcName)s(): %(message)s')
@@ -34,62 +35,63 @@ class rBot:
     def __init__(self, useragent, client_id, client_code, bot_username, bot_pass):
         self.__pagination_before_all = None
         self.__pagination_before_specific = None
-        self._recent_answered = LimitedList()
-
         self.already_thanked = LimitedList()
+
+        self.next_token_t = 0
+
         self.useragent = useragent
         self.client_id = client_id
         self.client_code = client_code
         self.bot_username = bot_username
         self.bot_pass = bot_pass
         self.req_sesh = self.prep_session()
-        self.fetch_token()  # Fetch the token on instantioation (i cant spell for shit)
+        self.get_new_token()  # Fetch the token on instantioation (i cant spell for shit)
 
     @sleep_and_retry
     @limits(calls=30, period=60)
     def handled_req(self, method, url, **kwargs):
+        if self.next_token_t <= int(time()):
+            self.get_new_token()
+
         while True:
-            if method == 'POST':
-                response = self.req_sesh.post(url, **kwargs)
-            elif method == 'GET':
-                response = self.req_sesh.get(url, **kwargs)
-            elif method == 'PUT':
-                response = self.req_sesh.put(url, **kwargs)
-            else:
-                response = NotImplemented
+            try:
+                response = self.req_sesh.request(method, url, **kwargs)
+            except requests.exceptions.RetryError:
+                sleep(30)
+                continue
+
             if response.status_code == 401:
-                self.fetch_token()
-                sleep(0.7)
+                self.get_new_token()
                 continue
             elif response.status_code == 403:
                 logger.warning("Forbidden")
-                break
+                return None
             else:
                 return response
 
     def prep_session(self):
         req_sesh = requests.Session()
         retries = Retry(total=5,
-                        backoff_factor=1,
+                        backoff_factor=3,
                         status_forcelist=[500, 502, 503, 504, 404])
         req_sesh.mount('https://', HTTPAdapter(max_retries=retries))
-        req_sesh.cookies.set_policy(BlockAll())  # we dont need cookies
+        req_sesh.cookies.set_policy(BlockAll())
         req_sesh.headers.update({"User-Agent": self.useragent})
         return req_sesh
 
-    @staticmethod
-    def get_new_token(client_id_, client_code_, bot_username_, bot_pass_, useragent_):
-        client_auth = requests.auth.HTTPBasicAuth(client_id_, client_code_)
-        post_data = {"grant_type": "password", "username": bot_username_, "password": bot_pass_}
-        response_token = requests.post(f"{rBase}/api/v1/access_token", auth=client_auth, data=post_data,
-                                       headers={"User-Agent": useragent_})
-        access_token = response_token.json()['access_token']
-        return access_token
-
-    def fetch_token(self):
-        token = rBot.get_new_token(self.client_id, self.client_code, self.bot_username, self.bot_pass, self.useragent)
-        logger.info('got new token: ' + token)
-        self.req_sesh.headers.update({"Authorization": f"bearer {token}"})
+    def get_new_token(self):
+        client_auth = requests.auth.HTTPBasicAuth(self.client_id, self.client_code)
+        post_data = {"grant_type": "password", "username": self.bot_username, "password": self.bot_pass}
+        response_token_ = requests.post(f"{rBase}/api/v1/access_token", auth=client_auth, data=post_data,
+                                        headers={"User-Agent": self.useragent})
+        try:
+            response_token = response_token_.json()
+        except:
+            raise Exception(response_token_.text)
+        self.next_token_t = int(time()) + response_token['expires_in'] - 15
+        access_token = response_token['access_token']
+        logger.info('got new token: ' + access_token)
+        self.req_sesh.headers.update({"Authorization": f"bearer {access_token}"})
 
     def read_notifs(self, notifs):
         ids = [notif.id_ for notif in notifs]
@@ -102,17 +104,30 @@ class rBot:
         logger.info(f"comment removed: {thingid}")
 
     def send_reply(self, text, thing):
-        data = {'api_type': 'json', 'return_rtjson': '1', 'text': text, "thing_id": thing.id_}
+        if isinstance(thing, str):
+            thing_id = thing
+        else:
+            thing_id = thing.id_
+        data = {'api_type': 'json', 'return_rtjson': '1', 'text': text, "thing_id": thing_id}
         reply_req = self.handled_req('POST', f"{self.base}/api/comment", data=data)
-        reply_s = reply_req.json()
+        if reply_req is None:
+            return 0
         try:
-            to_log = str(reply_s["json"]["errors"])
+            reply_s = reply_req.json()
+        except:
+            raise Exception(reply_req)
+        try:
+            to_log = reply_s["json"]["errors"]
             logger.warning(to_log)
-            sec_or_min = "min" if "minute" in to_log else "sec"
-            num_in_err = int(''.join(list(filter(str.isdigit, to_log))))
-            sleep_for = num_in_err + 5 if sec_or_min == "sec" else (num_in_err * 60) + 5
-            logger.info(f"sleeping for {sleep_for}")
-            return sleep_for
+            if to_log[0][0] != "DELETED_COMMENT":
+                to_log = str(to_log)
+                sec_or_min = "min" if "minute" in to_log else "sec"
+                num_in_err = int(''.join(list(filter(str.isdigit, to_log))))
+                sleep_for = num_in_err + 5 if sec_or_min == "sec" else (num_in_err * 60) + 5
+                logger.info(f"sleeping for {sleep_for}")
+                return sleep_for
+            else:
+                return 0
         except KeyError:
             logger.info("message sent")
             return 0
@@ -137,8 +152,6 @@ class rBot:
                 self.read_notifs([the_notif])
 
     def get_info_by_id(self, thing_id):
-        # thing_info = self.handled_req('GET', f'{self.base}/api/info', params={"id": thing_id})
-        # return thing_info.json()['data']['children'][0]
         thing_info = self.handled_req('GET', f'{self.base}/api/info', params={"id": thing_id}).json()
         if not bool(thing_info["data"]["children"]):
             return None
@@ -147,65 +160,10 @@ class rBot:
         else:
             return thing_info
 
-    def fetch_posts_from_subreddits(self, subs, limit=50, sort_by='new', pagination=True, stop_if_saved=True, skip_if_nsfw=True, custom_uri=None):
-        params = {"limit": limit}
-        if pagination:
-            params.update({"before": self.__pagination_before_specific})
-
-        if custom_uri:
-            uri = custom_uri
-        else:
-            subs = '+'.join(subs)
-            uri = f"{self.base}/r/{subs}/"
-        uri += sort_by
-
-        posts_req = self.handled_req('GET', uri, params=params)
-        posts = posts_req.json()["data"]["children"]
-        if not bool(posts):
-            self.__pagination_before_specific = None
-            return
-        for index, post in enumerate(posts):
-            the_post = rPost(post)
-            if stop_if_saved and the_post.is_saved:
-                return
-            if skip_if_nsfw and the_post.over_18:
-                continue
-            if index == 0:
-                if stop_if_saved:
-                    self.save_thing_by_id(the_post.id_)
-                if pagination:
-                    self.__pagination_before_specific = the_post.id_
-
-            if the_post.id_ in self._recent_answered.list:
-                continue
-            self._recent_answered.append_elem(the_post.id_)
-            yield the_post
-
-    def fetch_posts_from_own_multi(self, multiname, **kwargs):
-        uri = f"{self.base}/user/{self.bot_username}/m/{multiname}/"
-        return self.fetch_posts_from_subreddits(subs=None, custom_uri=uri, **kwargs)
-
-    # def fetch_posts_from_all(self, limit=100, pagination=True, stop_if_saved=True, skip_if_nsfw=True):
-    #     params = {"limit": limit}
-    #     if pagination and self.__pagination_before_all:
-    #         params.update({"before": self.__pagination_before_all})
-    #     posts_req = self.handled_req('GET', f'{self.base}/r/all/new', params=params)
-    #     posts = posts_req.json()["data"]["children"]
-    #     if not bool(posts):
-    #         self.__pagination_before_all = None
-    #         return
-    #     for post_index in range(0, len(posts)):
-    #         the_post = rPost(posts[post_index])
-    #         if skip_if_nsfw and the_post.over_18:
-    #             continue
-    #         if stop_if_saved and the_post.is_saved:
-    #             break
-    #         if post_index == 0:
-    #             if stop_if_saved:
-    #                 self.save_thing_by_id(the_post.id_)
-    #             if pagination:
-    #                 self.__pagination_before_all = the_post.id_
-    #         yield the_post
+    def init_new_fetcher(self, subs=None, limit=50, sort_by='new', pagination=True, stop_if_saved=True, skip_if_nsfw=False,
+                         before_or_after='before', pagination_param=None, multiname=None):
+        return PostFetcher(self, subs, multiname, limit, sort_by, pagination, stop_if_saved, skip_if_nsfw,
+                           before_or_after, pagination_param)
 
     def exclude_from_all(self, sub):
         data = {'model': f'{{"name":"{sub}"}}'}
