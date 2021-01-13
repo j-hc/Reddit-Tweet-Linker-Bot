@@ -91,17 +91,17 @@ class TwitterClient:
 
         b_could_be_quote = False
         the_tweet = None
-        break_out_of_nested_loops = False
+        user_id_str = None
         if from_whom:
+            for user in users:
+                if users[user]['screen_name'] == from_whom:
+                    user_id_str = user
+                    break
             for tweet in tweets:
-                for user in users:
-                    if users[user]['screen_name'] == from_whom and tweets[tweet]['user_id_str'] == user:
-                        the_tweet = tweets[tweet]
-                        if the_tweet['is_quote_status'] and len_tweets == 2:
-                            b_could_be_quote = True
-                        break_out_of_nested_loops = True
-                        break
-                if break_out_of_nested_loops:
+                if tweets[tweet]['user_id_str'] == user_id_str:
+                    the_tweet = tweets[tweet]
+                    if the_tweet['is_quote_status'] and len_tweets == 2:
+                        b_could_be_quote = True
                     break
         else:
             if (tweets_vals[0].get("is_quote_status") and len_tweets < 3) or (len_tweets == 2 and (tweets_vals[1].get("self_thread") or tweets_vals[1].get("conversation_id"))):
