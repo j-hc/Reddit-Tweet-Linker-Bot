@@ -3,6 +3,8 @@ from TwitterClient import TWStatus
 import re
 from math import ceil
 from collections import namedtuple
+from copy import deepcopy
+# from .vision_ocr_utils import mergeNearByWords, ymarker2
 
 
 class TextPrep:
@@ -24,12 +26,18 @@ class TextPrep:
     def __init__(self, tw_client):
         self.tw_client = tw_client
 
-    def prep_text(self, text, need_at):
+    def prep_text(self, text_, need_at):
         # text = re.sub(r'\s?•\s?', " • ", text_)  # temporary dot replacer
 
-        split_loaded = text.strip().split('\n')
+        # split_loaded = text.strip().split('\n')
 
-        start_index = len(split_loaded) - 1
+        # start_index = len(split_loaded) - 1
+        resp_z = deepcopy(text_)
+        text = ymarker2(resp_z, mergeNearByWords(text_))
+        for xx in text:
+            print(xx)
+        split_loaded = text
+        start_index = len(text) - 1
         tweet_search_models = []
         last_err = None
         while not start_index == -1:
@@ -37,7 +45,7 @@ class TextPrep:
             below_this = None
             below_this_controller = 0
             for at_dnm in range(start_index, -1, -1):
-                at_dnm_txt = str(split_loaded[at_dnm])
+                at_dnm_txt = str(split_loaded[at_dnm][0])
                 if below_this is None:
                     pass
                 elif below_this_controller >= 3:
@@ -48,14 +56,13 @@ class TextPrep:
                     if not below_this:
                         below_this = at_dnm + 1
                 elif at_dnm_txt.count('@') == 1:
-                    if self.three_dot in at_dnm_txt and self.tw_username_dot not in at_dnm_txt:
+                    split_at = at_dnm_txt.split('@')
+                    if self.three_dot in split_at[1].split()[0]:
                         at = None
                         if not below_this:
                             below_this = at_dnm + 1
                             break
                     else:
-                        split_at = at_dnm_txt.split('@')
-
                         if self.tw_username_dot not in at_dnm_txt:
                             try:
                                 rights_at = split_at[1].split(maxsplit=1)[1]
@@ -63,12 +70,10 @@ class TextPrep:
                             except IndexError:
                                 rights_at_l_b = False
                             if rights_at_l_b:
-                                print(at_dnm_txt)
                                 continue
-
                             try:
                                 lefts_at = split_at[0]
-                                lefts_at_l_b = len(self.re_only_letters_whitespace.sub('', lefts_at)) > 29
+                                lefts_at_l_b = len(self.re_only_letters_whitespace.sub('', lefts_at)) > 21
                             except IndexError:
                                 lefts_at_l_b = False
                             if lefts_at_l_b:
@@ -121,10 +126,12 @@ class TextPrep:
                 ah = at_dnm + 1
 
             search_list_tmp = []
-            for s in split_loaded[ah:start_index + 1]:
-                if not bool(self.re_endoftweet.search(s)):
-                    # if len(s) >= 10 or '@' in s:
-                    search_list_tmp.append(s.strip())
+            split_loaded_sliced = split_loaded[ah:start_index + 1]
+            prev_y = None
+            for s in split_loaded_sliced:
+                if not bool(self.re_endoftweet.search(s[0])) and (prev_y is None or s[1][0] - prev_y < 100):
+                    prev_y = s[1][0]
+                    search_list_tmp.append(s[0].strip())
                 else:
                     break
             search_list = []
@@ -133,7 +140,7 @@ class TextPrep:
                 for search_l in search_list_tmp:
                     if tmp_len_controller >= 4:
                         break
-                    if not bool(self.re_only_letters_whitespace.sub('', search_l)):
+                    if len(self.re_only_letters_whitespace.sub('', search_l)) <= 2:
                         tmp_len_controller += 1
                     elif len(search_l) >= 10:
                         search_list.append(search_l)
@@ -141,20 +148,20 @@ class TextPrep:
                         tmp_len_controller += 1
             else:
                 search_list = search_list_tmp
+
             search_list = ' '.join(search_list).split()
             search_list = filter(lambda w: not (w is None or all(x in w for x in ['.', '/'])), search_list)
             search_text = ' '.join(search_list)
             # search_text = ' '.join(filter(lambda w: len(w) > 2, search_list))
             search_text = self.re_two_space.sub(' ', search_text)
             # ------------------------------------------------
-
             if not search_text:
                 # print("no text")
                 last_err = {"result": "error", "reason": Reasons.DEFAULT}
                 start_index = at_dnm - 1
                 continue
 
-            min_letters = 8 if possible_at and not need_at else 30
+            min_letters = 7 if possible_at and not need_at else 18
             if len(search_text.replace(' ', '')) <= min_letters:
                 if start_index != 0 and last_err is not None and \
                         last_err['reason'] not in [Reasons.ACCOUNT_DNE, Reasons.ACCOUNT_SUSPENDED, Reasons.ACCOUNT_PROTECTED]:
@@ -179,8 +186,7 @@ class TextPrep:
                 strs = []
 
                 while z_len_s > min_word_i and f_len_s < 45:
-                    addd = [' '.join(search_text_s[i:i + n_1]) for i in range(0, len(search_text_s), n_1)]
-                    strs += addd
+                    strs += [' '.join(search_text_s[i:i + n_1]) for i in range(0, len(search_text_s), n_1)]
                     z_len_s = len(strs[-2].split())
                     f_len_s = len(strs[0].split())
 

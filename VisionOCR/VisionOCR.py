@@ -1,13 +1,12 @@
 import requests
 import json
 import base64
-from .lsgapp import mergeNearByWords
 from info import vision_ocr_api_key
 
 
 class VisionOCR:
     @staticmethod
-    def get_ocr(picuri, merge_nearby_words=True):
+    def get_ocr(picuri, raw_response=True):
         if picuri.startswith('https'):
             image_data = {"source": {"image_uri": picuri}}
         else:
@@ -23,10 +22,11 @@ class VisionOCR:
             try:
                 response['responses'][0]
             except:
-                raise Exception(response)
+                raise Exception(response_.text)
             if bool(response['responses'][0]):
-                if merge_nearby_words:
-                    return mergeNearByWords(response['responses'][0])
+                if raw_response:
+                    # print(response['responses'][0])
+                    return response['responses'][0]
                 else:
                     return response['responses'][0]['textAnnotations'][0]['description']
             else:

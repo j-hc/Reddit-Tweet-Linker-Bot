@@ -25,9 +25,9 @@ class TwitterClient:
 
     def prep_session(self):
         req_sesh = requests.Session()
-        req_sesh.cookies.set_policy(TwitterClient.BlockAll())
+        req_sesh.cookies.set_policy(self.BlockAll())
         req_sesh.headers = {
-            'authorization': f'Bearer {TwitterClient.TWITTER_PUBLIC_TOKEN}',
+            'Authorization': f'Bearer {self.TWITTER_PUBLIC_TOKEN}',
             'User-Agent': "Mozilla/5.0 Gecko/20100101 Firefox/81.0",
             'Accept-Encoding': None,
             'Accept': None
@@ -75,7 +75,7 @@ class TwitterClient:
             ('tweet_mode', 'compat'), ('include_entities', 'false'), ('include_user_entities', 'false'),
             ('send_error_codes', 'true'), ('simple_quoted_tweet', 'false'), ('query_source', ''), ('pc', '1'),
         )
-        response_r = self.handled_get(f'{TwitterClient.HOST}/2/search/adaptive.json', params=params)
+        response_r = self.handled_get(f'{self.HOST}/2/search/adaptive.json', params=params)
         response = response_r.json(object_pairs_hook=OrderedDict)
         try:
             tweets = response['globalObjects']['tweets']
@@ -124,8 +124,7 @@ class TwitterClient:
 
     def get_twitter_account_status(self, username):
         params = ('variables', f'{{"screen_name":"{username}","withHighlightedLabel":true}}'),
-        response = self.handled_get(f'{TwitterClient.HOST}/graphql/-xfUfZsnR_zqjFd-IfrN5A/UserByScreenName',
-                                    params=params).json()
+        response = self.handled_get(f'{self.HOST}/graphql/-xfUfZsnR_zqjFd-IfrN5A/UserByScreenName', params=params).json()
         if response.get('errors'):
             if response['errors'][0]['code'] == 63:
                 return TWStatus.SUSPENDED
