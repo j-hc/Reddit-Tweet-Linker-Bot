@@ -215,7 +215,11 @@ class TextPrep:
                         break
                 elif line_text.count('@') == 1 or (self.tw_username_dot in line_text and not ending):
                     tweeter_box = None
-                    if self.three_dot not in line_text:
+                    try:
+                        tweeter_line_text = line_text.split('@')[1].split()[0]
+                    except:
+                        tweeter_line_text = line_text
+                    if self.three_dot not in tweeter_line_text:
                         tweeter_box_try = self.re_twitterusername2.search(line_text)
                         if bool(tweeter_box_try):
                             tweeter_box = tweeter_box_try.group(1)
@@ -236,8 +240,7 @@ class TextPrep:
         last_err = None
         tweet_search_models = []
         for tweet_block in reversed(tweet_blocks):
-            print(tweet_block)
-
+            # print(tweet_block)
             at_to_be_used = None
             if tweet_block.tweeter_box is not None:
                 account_status = self.tw_client.get_twitter_account_status(tweet_block.tweeter_box)
