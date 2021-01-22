@@ -23,7 +23,7 @@ class VisionOCR:
                 response['responses'][0]
             except:
                 raise Exception(response_.text)
-            if bool(response['responses'][0]):
+            if bool(response['responses'][0]) and bool(response['responses'][0]['textAnnotations']):
                 if raw_response:
                     # print(response['responses'][0])
                     # print(response['responses'][0]['textAnnotations'][0]['description'])
@@ -31,5 +31,6 @@ class VisionOCR:
                 else:
                     return response['responses'][0]['textAnnotations'][0]['description']
             else:
+                print("try")
                 continue
         return None

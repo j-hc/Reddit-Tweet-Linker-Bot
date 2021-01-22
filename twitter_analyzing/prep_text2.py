@@ -38,12 +38,11 @@ class TextPrep:
             return float(_f_ % flt)
 
         max_word_y_diff = 18.0
-        max_word_x_diff = 59.0
-        max_line_x_diff = 32.5
-        max_line_y_diff = 34  # 36.1
+        max_word_x_diff = 59.0  # 59.0
+        max_line_x_diff = 32.5  # 32.5
+        max_line_y_diff = 36.1  # 36.1
         other_chars_bottom_y_diff_plus = 10.2
         other_chars_bottom_y_diff = max_word_y_diff + other_chars_bottom_y_diff_plus
-
         text_annotations = ocr_data['textAnnotations'][1:]
         vertice_texts = []
         id_incrementer = 0
@@ -179,6 +178,7 @@ class TextPrep:
         tweet_blocks = []
         tweet_text = []
         last_ending = True
+        tweeter_box = None
         added_block_indexes = set()
         for block_i, text_block in enumerate(text_blocks):
             # print(text_block)
@@ -186,7 +186,10 @@ class TextPrep:
             lines_last_index = len(lines_it) - 1
             for line_index, line in enumerate(lines_it):
                 line_text = line[0]
+                line_box = line[1]
                 # print(line_text)
+                if tweeter_box is not None and abs(tweeter_bottom_y - line_box[1]) < 36.1:
+                    continue
                 if len(self.re_only_letters_whitespace.sub('', line_text)) <= 4 and (not append_trailing_lines or line_index != lines_last_index):
                     continue
                 if bool(self.re_replying2.search(line_text)):
@@ -224,6 +227,7 @@ class TextPrep:
                         tweeter_box_try = self.re_twitterusername2.search(line_text)
                         if bool(tweeter_box_try):
                             tweeter_box = tweeter_box_try.group(1)
+                    tweeter_bottom_y = line_box[1]
                     # print("found", end=' ')
                     # print(tweeter_box)
                     # print(line_text)

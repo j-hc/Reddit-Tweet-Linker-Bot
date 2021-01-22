@@ -64,7 +64,6 @@ class JobHandlerWorker:
             else:
                 imgurl = post.url
             textt = self.yandex_ocr.get_ocr(imgurl)
-            # print(textt)
             if textt:
                 prepped_text = self.text_prepper.prep_text(textt, need_at=True)
                 prepped_text_result = prepped_text.get("result")
