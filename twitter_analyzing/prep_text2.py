@@ -13,12 +13,13 @@ class TextPrep:
     #  YES I KNOW THIS WHOLE THING IS UGLY ASF
 
     tw_username_dot = "·"
-    three_dot = ".."  # … for yandex ocr
+    three_dot = ".."  # … for yandex ocr # . for vision ocr
 
-    re_replying2 = re.compile(r'Antwort an|Replying to|adlı kişiye|adlı kullanıcı(lara|ya)|kullanıcı(lara|ya) yanıt olarak|kişiye yanıt olarak|svar till|ve diğer [0-9]+ kişiye|En réponse à|'
+    re_replying_ = re.compile(r'Antwort an|Replying to|adlı kişiye|adlı kullanıcı(lara|ya)|kullanıcı(lara|ya) yanıt olarak|kişiye yanıt olarak|svar till|ve diğer [0-9]+ kişiye|En réponse à|'
                               r'En respuesta a')
-    re_endoftweet2 = re.compile(r'Twitter for|Translate Tweet|Tweeti Çevir|Twitter Web App|PM - |for (iOS|Android)| Translate from |Tweet your reply|\d{1,2}[/.-]\d{1,2}[/.-]\d{1,4}|'
-                                r'Show this thread|Yanıtını Tweetle|dilinden Google tarafından|[0-9].*? Retweet.*?[0-9].*? Beğeni|Bu Tweet dizisini göster|'
+    re_replying2 = re.compile(r'Antwort an|Replying to|adlı kişiye|adlı kullanıcı(lara|ya)|yanıt olarak|svar till|ve diğer [0-9]+ kişiye|En réponse à|En respuesta a')
+    re_endoftweet2 = re.compile(r'Twitter for|Translate Tweet|Tweeti Çevir|Twitter Web App|PM - |for (iOS|Android)| Translate from |\d{1,2}[/.-]\d{1,2}[/.-]\d{1,4}|'
+                                r'Show this thread|dilinden Google tarafından|[0-9].*? Retweet.*?[0-9].*? Beğeni|Bu Tweet dizisini göster|'
                                 r'[0-9].*? Retweets.*?[0-9].*? Likes')
     re_twitterusername2 = re.compile(r"@([A-Za-z0-9_]{3,15})")
 
@@ -37,9 +38,9 @@ class TextPrep:
             return float(_f_ % flt)
 
         max_word_y_diff = 18.0
-        max_word_x_diff = 59.0  # 42 # 29.13 # 59 sariyer # and you calling it 92.6
-        max_line_x_diff = 32.5  # 32.5
-        max_line_y_diff = 36.1  # 37 # 34 calling it # old 48
+        max_word_x_diff = 59.0
+        max_line_x_diff = 32.5
+        max_line_y_diff = 34  # 36.1
         other_chars_bottom_y_diff_plus = 10.2
         other_chars_bottom_y_diff = max_word_y_diff + other_chars_bottom_y_diff_plus
 
@@ -165,7 +166,9 @@ class TextPrep:
             parag_box = (avg_left_x_of_parag, bottom_y_of_parag, top_y_of_parag)
             blocks.append((tuple(same_parag_lines), parag_box))
         blocks.sort(key=lambda x: x[1][1])
-
+        # for b in blocks:
+        #     print(b)
+        # exit()
         if return_raw_blocks:
             return blocks
         else:
@@ -175,21 +178,17 @@ class TextPrep:
         append_trailing_lines = False
         tweet_blocks = []
         tweet_text = []
-        for text_block in text_blocks:
+        last_ending = True
+        added_block_indexes = set()
+        for block_i, text_block in enumerate(text_blocks):
             # print(text_block)
             lines_it = text_block[0]
             lines_last_index = len(lines_it) - 1
             for line_index, line in enumerate(lines_it):
                 line_text = line[0]
                 # print(line_text)
-
-                if len(self.re_only_letters_whitespace.sub('', line_text)) <= 2 and line_index != lines_last_index:
+                if len(self.re_only_letters_whitespace.sub('', line_text)) <= 4 and (not append_trailing_lines or line_index != lines_last_index):
                     continue
-
-                # if line_index != 0:
-                #     with_prev_line_merged = f"{' '.join(lines_it[line_index - 1][0].split()[-2:])} {line_text}"
-                # else:
-                #     with_prev_line_merged = line_text
                 if bool(self.re_replying2.search(line_text)):
                     # print("zzzzzzzzz", end=' ')
                     # print(line_text)
@@ -207,13 +206,15 @@ class TextPrep:
                     if line_index == lines_last_index or ending:
                         if bool(tweet_text):
                             tweet_block2append = self.tweet_block(tweeter_box=tweeter_box, tweet_text_box=' '.join(tweet_text))
-                            tweet_blocks.append(tweet_block2append)
+                            if block_i not in added_block_indexes:
+                                tweet_blocks.append(tweet_block2append)
+                                added_block_indexes.add(block_i)
                         tweet_text = []
                         # print(tweet_block2append)
                         # print()
                         append_trailing_lines = False
                         break
-                elif line_text.count('@') == 1 or (self.tw_username_dot in line_text and not ending):
+                elif line_text.count('@') == 1 or (self.tw_username_dot in line_text and not ending and len(line_text.split(self.tw_username_dot)[0]) >= 0):
                     tweeter_box = None
                     try:
                         tweeter_line_text = line_text.split('@')[1].split()[0]
@@ -223,19 +224,38 @@ class TextPrep:
                         tweeter_box_try = self.re_twitterusername2.search(line_text)
                         if bool(tweeter_box_try):
                             tweeter_box = tweeter_box_try.group(1)
-                    # print("aaaaaaaaaaaa", end=' ')
+                    # print("found", end=' ')
                     # print(tweeter_box)
                     # print(line_text)
                     append_trailing_lines = True
-
+                elif ending and not last_ending:
+                    block_index_to_extract_text_from = block_i - 1
+                    if line_index != 0 and block_i not in added_block_indexes:
+                        # print(f"ending l: {line_text}")
+                        lines_of_possible_tweet = lines_it[:line_index]
+                        lines_text_only = ' '.join([li[0] for li in lines_of_possible_tweet
+                                                    if self.re_endoftweet2.search(li[0]) is None and self.re_replying2.search(li[0]) is None])
+                        tweet_block2append = self.tweet_block(tweeter_box=None, tweet_text_box=lines_text_only)
+                        tweet_blocks.append(tweet_block2append)
+                        added_block_indexes.add(block_i)
+                    elif block_i != 0 and block_index_to_extract_text_from not in added_block_indexes:
+                        # print(f"ending b: {line_text}")
+                        lines_of_possible_tweet = text_blocks[block_index_to_extract_text_from][0]
+                        lines_text_only = ' '.join([li[0] for li in lines_of_possible_tweet
+                                                    if self.re_endoftweet2.search(li[0]) is None and self.re_replying2.search(li[0]) is None])
+                        tweet_block2append = self.tweet_block(tweeter_box=None, tweet_text_box=lines_text_only)
+                        tweet_blocks.append(tweet_block2append)
+                        added_block_indexes.add(block_index_to_extract_text_from)
+                last_ending = ending
+                # last_block_bottom_y = current_block_bottom_y
         return tweet_blocks
 
     def prep_text(self, ocr_data, need_at):
         text_blocks = self.extract_text_blocks(ocr_data)
         tweet_blocks = self.create_tweet_blocks(text_blocks)[:5]  # only last 5
 
-        if not bool(tweet_blocks) and need_at:
-            return {"result": "error", "reason": Reasons.NO_AT}
+        if not bool(tweet_blocks):
+            return {"result": "error", "reason": Reasons.DEFAULT}
 
         last_err = None
         tweet_search_models = []

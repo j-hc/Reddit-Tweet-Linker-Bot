@@ -76,6 +76,7 @@ class TwitterClient:
             ('send_error_codes', 'true'), ('simple_quoted_tweet', 'false'), ('query_source', ''), ('pc', '1'),
         )
         response_r = self.handled_get(f'{self.HOST}/2/search/adaptive.json', params=params)
+        # print(response_r.text)
         response = response_r.json(object_pairs_hook=OrderedDict)
         try:
             tweets = response['globalObjects']['tweets']
@@ -104,7 +105,8 @@ class TwitterClient:
                         b_could_be_quote = True
                     break
         else:
-            if (tweets_vals[0].get("is_quote_status") and len_tweets < 3) or (len_tweets == 2 and (tweets_vals[1].get("self_thread") or tweets_vals[1].get("conversation_id"))):
+            # if (tweets_vals[0].get("is_quote_status") and len_tweets < 3) or (len_tweets == 2 and (tweets_vals[1].get("self_thread") or tweets_vals[1].get("conversation_id"))):
+            if (tweets_vals[0].get("is_quote_status") and len_tweets < 3) or (len_tweets == 2 and tweets_vals[1].get("self_thread")):
                 tweet_index_i = 0
             else:
                 tweet_index_i = -1
@@ -113,7 +115,7 @@ class TwitterClient:
                 b_could_be_quote = True
             the_tweet = tweets_vals[tweet_index_i]
 
-        if not the_tweet:
+        if the_tweet is None:
             return {}
 
         tweet_id = the_tweet['id_str']
@@ -123,7 +125,7 @@ class TwitterClient:
         return {"link": f"https://twitter.com/{the_user_name}/status/{tweet_id}", "user_id": user_id_str, "b_could_be_quote": b_could_be_quote}
 
     def get_twitter_account_status(self, username):
-        params = ('variables', f'{{"screen_name":"{username}","withHighlightedLabel":true}}'),
+        params = {'variables': f'{{"screen_name":"{username}","withHighlightedLabel":true}}'}
         response = self.handled_get(f'{self.HOST}/graphql/-xfUfZsnR_zqjFd-IfrN5A/UserByScreenName', params=params).json()
         if response.get('errors'):
             if response['errors'][0]['code'] == 63:

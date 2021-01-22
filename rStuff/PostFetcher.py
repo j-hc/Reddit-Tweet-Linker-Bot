@@ -45,6 +45,7 @@ class PostFetcher:
                 break
             if self.skip_if_nsfw and the_post.over_18:
                 continue
+            # self.bot.save_thing_by_id(the_post.id_)
             if self.stop_if_saved:
                 if index == 0 and self.before_or_after == 'before':
                     self.bot.save_thing_by_id(the_post.id_)

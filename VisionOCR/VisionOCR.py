@@ -26,6 +26,7 @@ class VisionOCR:
             if bool(response['responses'][0]):
                 if raw_response:
                     # print(response['responses'][0])
+                    # print(response['responses'][0]['textAnnotations'][0]['description'])
                     return response['responses'][0]
                 else:
                     return response['responses'][0]['textAnnotations'][0]['description']
