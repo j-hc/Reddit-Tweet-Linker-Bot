@@ -2,6 +2,7 @@ from time import sleep
 import traceback
 from collections import namedtuple
 from .Utils import JobType, PriorityEntry
+from rStuff import PostFetcher
 
 
 class RedditWorkers:
@@ -35,7 +36,7 @@ class RedditWorkers:
 
     def sub_feed_listener(self):
         try:
-            posts_fetcher = self.rbot.init_new_fetcher(multiname="listening", sort_by="new")
+            posts_fetcher = PostFetcher(bot=self.rbot, multiname="listening", sort_by="new")
             while True:
                 last_submissions_new = posts_fetcher.fetch_posts()
                 for last_submission in last_submissions_new:

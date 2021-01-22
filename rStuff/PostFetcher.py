@@ -2,7 +2,8 @@ from .rUtils import rPost
 
 
 class PostFetcher:
-    def __init__(self, bot, subs: list, multiname: str, limit, sort_by, pagination, stop_if_saved, skip_if_nsfw, before_or_after, pagination_param):
+    def __init__(self, bot, subs=None, limit=50, sort_by='new', pagination=True, stop_if_saved=True, skip_if_nsfw=False,
+                 before_or_after='before', pagination_param=None, multiname=None):
         assert any(before_or_after == ba for ba in ['before', 'after'])
         assert (subs is not None) != (multiname is not None)
 

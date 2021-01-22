@@ -7,7 +7,7 @@ from urllib3.util.retry import Retry
 from requests.adapters import HTTPAdapter
 from ratelimit import sleep_and_retry, limits
 from time import sleep, time
-from .PostFetcher import PostFetcher
+
 
 logging.basicConfig(level=logging.INFO, datefmt='%H:%M',
                     format='%(asctime)s, [%(filename)s:%(lineno)d] %(funcName)s(): %(message)s')
@@ -159,11 +159,6 @@ class rBot:
             return rPost(thing_info["data"]["children"][0])
         else:
             return thing_info
-
-    def init_new_fetcher(self, subs=None, limit=50, sort_by='new', pagination=True, stop_if_saved=True, skip_if_nsfw=False,
-                         before_or_after='before', pagination_param=None, multiname=None):
-        return PostFetcher(self, subs, multiname, limit, sort_by, pagination, stop_if_saved, skip_if_nsfw,
-                           before_or_after, pagination_param)
 
     def exclude_from_all(self, sub):
         data = {'model': f'{{"name":"{sub}"}}'}
