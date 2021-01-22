@@ -291,8 +291,8 @@ class TextPrep:
                 last_err = {"result": "error", "reason": Reasons.DEFAULT}
                 continue
 
-            min_letters = 7 if at_to_be_used and not need_at else 18
-            if len(tweet_text_filter.replace(' ', '')) <= min_letters:
+            min_letters = 7 if at_to_be_used and not need_at else 14
+            if len(tweet_text_filter.replace(' ', '')) < min_letters:
                 last_err = {"result": "error", "reason": Reasons.TOO_SHORT_NO_AT}
                 # print("too short and there is no at")
                 continue

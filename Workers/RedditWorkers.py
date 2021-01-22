@@ -46,7 +46,7 @@ class RedditWorkers:
                         self.job_q.put((2, PriorityEntry(2, job)))
                         print("(SFC)maybe a job: " + last_submission.id_ + " from " + last_submission.subreddit)
                     # else:
-                    # print("(SFC)this's not a pic: " + last_submission.id_ + " from " + last_submission.subreddit)
+                        # print("(SFC)this's not a pic: " + last_submission.id_ + " from " + last_submission.subreddit)
                 sleep(self.sub_feed_listener_interval)
         except:
             while True:
