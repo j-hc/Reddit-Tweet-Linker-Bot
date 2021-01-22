@@ -25,7 +25,7 @@ class LimitedList:
         self.list = []
 
     def append_elem(self, item):
-        self.list = self.list[:30]
+        self.list = self.list[-30:]
         self.list.append(item)
 
 
