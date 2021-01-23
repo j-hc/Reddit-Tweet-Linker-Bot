@@ -14,10 +14,8 @@ class MultiThreadedWorker:
 
         reddit_workers = RedditWorkers(rbot, self.job_q, self.reply_q)
 
-        # yandex_ocr = PyYandexOCR()
-        vision_ocr = VisionOCR
         tw_client = TwitterClient()
-        job_handler_worker = JobHandlerWorker(vision_ocr, tw_client, self.job_q, self.reply_q)
+        job_handler_worker = JobHandlerWorker(VisionOCR, tw_client, self.job_q, self.reply_q)
 
         self.reply_worker_t = Thread(target=reddit_workers.reply_worker, daemon=True)
         self.notif_listener_t = Thread(target=reddit_workers.notif_listener, daemon=True)

@@ -35,7 +35,7 @@ class PyYandexOCR:
             return response
         return None
 
-    def get_ocr(self, image, lang='*', raw_response=False):
+    def get_ocr(self, image, lang='*', rawx_response=False):
         img_raw = self._get_img_content(image)
         if img_raw is None:
             return None
@@ -51,7 +51,7 @@ class PyYandexOCR:
             # err = resp_j['description']
             return None
 
-        if raw_response:
+        if rawx_response:
             return response.json()
         else:
             text = ""

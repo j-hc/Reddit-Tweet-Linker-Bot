@@ -25,8 +25,8 @@ class PriorityEntry:
 class JobHandlerWorker:
     replyJob = namedtuple('replyJob', 'text thing')
 
-    def __init__(self, yandex_ocr, tw_client, job_q, reply_q):
-        self.yandex_ocr = yandex_ocr
+    def __init__(self, ocr_tool, tw_client, job_q, reply_q):
+        self.ocr_tool = ocr_tool
 
         self.text_prepper = TextPrep(tw_client)
         self.twitter_searcher = TWSearch(tw_client)
@@ -63,7 +63,7 @@ class JobHandlerWorker:
                 imgurl = post.gallery_media[0]
             else:
                 imgurl = post.url
-            textt = self.yandex_ocr.get_ocr(imgurl)
+            textt = self.ocr_tool.get_ocr(imgurl)
             if textt:
                 prepped_text = self.text_prepper.prep_text(textt, need_at=True)
                 prepped_text_result = prepped_text.get("result")
@@ -102,7 +102,7 @@ class JobHandlerWorker:
                     imgurl = post.gallery_media[0]
                 else:
                     imgurl = post.url
-                textt = self.yandex_ocr.get_ocr(imgurl)
+                textt = self.ocr_tool.get_ocr(imgurl)
                 # print(textt)
                 if textt:
                     prepped_text = self.text_prepper.prep_text(textt, need_at=False)
