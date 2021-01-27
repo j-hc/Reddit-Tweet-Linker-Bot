@@ -37,3 +37,22 @@ class VisionOCR:
             else:
                 return responses_zero['textAnnotations'][0]['description']
         return None
+
+    # @staticmethod
+    # def _extrc_pgs(full_text_annotation):
+    #     blocks = full_text_annotation['pages'][0]['blocks']
+    #
+    #     blocks_list = []
+    #     for block in blocks:
+    #         words = block['paragraphs'][0]['words']
+    #         sentence = ""
+    #         for word in words:
+    #             symbols = word['symbols']
+    #             word_text = ""
+    #             for symbol in symbols:
+    #                 word_text += symbol['text']
+    #             sentence += word_text + ' '
+    #         paragraphs_text = sentence.strip() + '\n'
+    #         blocks_list.append(paragraphs_text.strip())
+    #
+    #     return blocks_list

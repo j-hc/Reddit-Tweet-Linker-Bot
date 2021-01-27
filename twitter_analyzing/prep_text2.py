@@ -15,45 +15,81 @@ class TextPrep:
     tw_username_dot = "·"
     three_dot = ".."  # … for yandex ocr # . for vision ocr
 
-    re_replying_ = re.compile(r'Antwort an|Replying to|adlı kişiye|adlı kullanıcı(lara|ya)|kullanıcı(lara|ya) yanıt olarak|kişiye yanıt olarak|svar till|ve diğer [0-9]+ kişiye|En réponse à|'
-                              r'En respuesta a')
     re_replying2 = re.compile(r'Antwort an|Replying to|adlı kişiye|adlı kullanıcı(lara|ya)|yanıt olarak|svar till|ve diğer [0-9]+ kişiye|En réponse à|En respuesta a')
     re_endoftweet2 = re.compile(r'Twitter for|Translate Tweet|Tweeti Çevir|Twitter Web App|PM - |for (iOS|Android)| Translate from |\d{1,2}[/.-]\d{1,2}[/.-]\d{1,4}|'
-                                r'Show this thread|dilinden Google tarafından|[0-9].*? Retweet.*?[0-9].*? Beğeni|Bu Tweet dizisini göster|'
-                                r'[0-9].*? Retweets.*?[0-9].*? Likes')
+                                r'Show this thread|dilinden Google tarafından|[0-9].*? Retweet.*?[0-9].*? Beğeni|Bu Tweet dizisini göster|Tweet etkinliğini görüntüle|'
+                                r'[0-9].*? Retweets.*?[0-9].*? Likes|Show replies')
     re_twitterusername2 = re.compile(r"@([A-Za-z0-9_]{3,15})")
 
     re_two_space = re.compile(' +')
-    re_only_letters_whitespace = re.compile('[^a-zA-Z ]')
+    re_only_letters_whitespace = re.compile('[^a-zA-Z!?ışçöğü ]')
 
     tweet_search_model = namedtuple("tweet_search_model", "possible_at possibe_search_text no_at_variaton")
     tweet_block = namedtuple("tweet_block", "tweeter_box tweet_text_box")
 
     def __init__(self, tw_client):
+        self.max_word_x_diff = 0
+        self.max_line_x_diff = 0
+        self.max_line_y_diff = 0
+        self.max_word_y_diff = 0
+        self.other_chars_bottom_y_diff_plus = 0
         self.tw_client = tw_client
+
+        self.d = False
+        self.b = False
+
+    def _print_d(self, p=''):
+        if self.d:
+            print(p)
+
+    def _print_b(self, p=''):
+        if self.b:
+            print(p)
 
     def extract_text_blocks(self, ocr_data, return_raw_blocks=True):
         def _truncated_float(flt, _f='3'):
             _f_ = f'%.{_f}f'
             return float(_f_ % flt)
 
-        max_word_y_diff = 18.0
-        max_word_x_diff = 59.0  # 59.0
-        max_line_x_diff = 32.5  # 32.5
-        max_line_y_diff = 36.1  # 36.1
-        other_chars_bottom_y_diff_plus = 10.2
-        other_chars_bottom_y_diff = max_word_y_diff + other_chars_bottom_y_diff_plus
+        self.max_word_y_diff = 15.85  # 19.6 # 15.85 eline uyan
+        self.max_word_x_diff = 59.0  # 42 # 29.13 # 59 sariyer # and you calling it 92.6
+        self.max_line_x_diff = 32.5  # 32.5
+        self.max_line_y_diff = 37.1  # 37 # 34 calling it # old 48
+        self.other_chars_bottom_y_diff_plus = 6.0
+
         text_annotations = ocr_data['textAnnotations'][1:]
         vertice_texts = []
         id_incrementer = 0
+        # total_y_diff_of_words = 0
         for text_annotation in text_annotations:
             vertices = text_annotation['boundingPoly']['vertices']
             text = text_annotation['description']
             box = []
-            for vertice in vertices:
-                box.append((vertice.get('x', 0), vertice.get('y', 0)))
+            for vertic_i, vertice in enumerate(reversed(vertices)):
+                x_val = vertice.get('x', 0)
+                y_val = vertice.get('y', 0)
+                if text == self.tw_username_dot and (vertic_i == 0 or vertic_i == 1):
+                    y_val += self.other_chars_bottom_y_diff_plus
+                elif text == self.tw_username_dot and (vertic_i == 2 or vertic_i == 3):
+                    y_val -= self.other_chars_bottom_y_diff_plus
+
+                if any(lt in text for lt in ['g', 'p', 'y', 'ğ']) and (vertic_i == 0 or vertic_i == 1):
+                    y_val -= self.other_chars_bottom_y_diff_plus
+
+                box.append((x_val, y_val))
+            # total_y_diff_of_words += abs((box[0][1] + box[1][1]) - (box[2][1] + box[3][1])) / 2
             vertice_texts.append((text, tuple(box), id_incrementer))
             id_incrementer += 1
+
+        # avg_y_diff_of_words = total_y_diff_of_words / id_incrementer
+        # print(avg_y_diff_of_words)
+
+        # latest_vertice_bottom_y = vertice_texts[-1][1][0][1]
+        # first_vertice_top_y = vertice_texts[0][1][3][0]
+        # y_difference = latest_vertice_bottom_y - first_vertice_top_y
+
+        # print(f"y diff: {y_difference} max_line_y_diff: {self.max_line_y_diff}")
+        # print(f"y diff: {y_difference} max_word_y_diff: {self.max_word_y_diff}")
 
         lines = []
         red_references = set()
@@ -63,15 +99,11 @@ class TextPrep:
                 continue
             red_references.add(vertice_text_base[2])
 
-            # box_base = vertice_text_base[1]
-            # avg_top_y_val_base = (box_base[2][1] + box_base[3][1]) / 2.0
-
             nearyby_y_vals = [vertice_text_base]
-            # print(f"base: {vertice_text_base}")
+            self._print_d(f"base: {vertice_text_base}")
             for vertice_text in vertice_texts:
                 if vertice_text[2] in red_references:
                     continue
-                # print(f"ref: {vertice_text}")
 
                 box = vertice_text[1]
                 last_elem_box_of_line = nearyby_y_vals[-1][1]
@@ -87,27 +119,29 @@ class TextPrep:
                 avg_bottom_y_val_of_last_elem = (last_elem_box_of_line[0][1] + last_elem_box_of_line[1][1]) / 2.0
                 avg_bottom_y_val_ref = (box[0][1] + box[1][1]) / 2.0
                 check_y_diff = abs(avg_bottom_y_val_of_last_elem - avg_bottom_y_val_ref)
-                if (check_y_diff < max_word_y_diff or (vertice_text[0] == self.tw_username_dot and check_y_diff < other_chars_bottom_y_diff)) and check_x_diff < max_word_x_diff:
-                    # print("eklendi")
+                self._print_d(f"ref: {vertice_text}")
+                self._print_d(f"last elem {nearyby_y_vals[-1]}")
+                self._print_d(f"x check: {avg_left_x_val_of_last_elem} - {avg_right_x_val_of_ref}")
+                self._print_d(f"y check: {avg_bottom_y_val_of_last_elem} - {avg_bottom_y_val_ref}")
+                self._print_d(f"y {check_y_diff}<{self.max_word_y_diff} : x {check_x_diff} < {self.max_word_x_diff}")
+                if check_y_diff < self.max_word_y_diff and check_x_diff < self.max_word_x_diff:
+                    self._print_d("eklendi")
+                    self._print_d()
                     nearyby_y_vals.append(vertice_text)
                     red_references.add(vertice_text[2])
                     nearyby_y_vals.sort(key=lambda x: x[1][0][0])
-            # print()
-            # texts_list = [t_elem[0] for t_elem in nearyby_y_vals]
+            self._print_d()
+
             nearyby_y_vals_len = len(nearyby_y_vals)
 
             total_bottom_y = 0
             for box_y in nearyby_y_vals:
                 total_bottom_y += (box_y[1][0][1] + box_y[1][1][1]) / 2.0
-                if box_y[0] == self.tw_username_dot:
-                    total_bottom_y += other_chars_bottom_y_diff_plus
             avg_bottom_y_of_line = _truncated_float(total_bottom_y / nearyby_y_vals_len)
 
             total_top_y = 0
             for box_y in nearyby_y_vals:
                 total_top_y += (box_y[1][2][1] + box_y[1][3][1]) / 2.0
-                if box_y[0] == self.tw_username_dot:
-                    total_top_y -= other_chars_bottom_y_diff_plus
             avg_top_y_of_line = _truncated_float(total_top_y / nearyby_y_vals_len)
 
             avg_left_x_of_line = _truncated_float((nearyby_y_vals[0][1][0][0] + nearyby_y_vals[0][1][3][0]) / 2.0)
@@ -120,8 +154,8 @@ class TextPrep:
             elem_id_incrementer += 1
 
         lines.sort(key=lambda x: x[1][1])
-        # for xx in lines:
-        #     print(xx)
+        # for l in lines:
+        #     print(l)
         # exit()
         blocks = []
         red_references = set()
@@ -133,7 +167,7 @@ class TextPrep:
             avg_left_x_of_line_base = box_base[0]
             same_parag_lines = [line_base[:2]]
 
-            # print(f"base: {line_base}")
+            self._print_b(f"base: {line_base}")
             for line in lines:
                 if line[2] in red_references:
                     continue
@@ -151,14 +185,18 @@ class TextPrep:
                 bottom_top_diff = abs(ref_elem_y_of_top - last_elem_y_of_bottom)
 
                 bottom_top_min_diff = top_bottom_diff if top_bottom_diff < bottom_top_diff else bottom_top_diff
-                # print(f"ref: {line}")
-                if abs(avg_left_x_of_line_base - avg_left_x_of_line) < max_line_x_diff and bottom_top_min_diff < max_line_y_diff:
+                check_left_x_diff = abs(avg_left_x_of_line_base - avg_left_x_of_line)
+                self._print_b(f"last elem {line_last_elem}")
+                self._print_b(f"ref: {line}")
+                self._print_b(f"{ref_elem_y_of_top} - {last_elem_y_of_bottom}")
+                self._print_b(f"{bottom_top_min_diff} < {self.max_line_y_diff} : {check_left_x_diff}<{self.max_line_x_diff}")
+                if check_left_x_diff < self.max_line_x_diff and bottom_top_min_diff < self.max_line_y_diff:
                     red_references.add(line[2])
                     same_parag_lines.append(line[:2])
-                    # print("eklendi")
+                    self._print_b("eklendi")
+                    self._print_b()
                     same_parag_lines.sort(key=lambda x: x[1][1])
-
-            # print()
+            self._print_b()
             top_y_of_parag = same_parag_lines[0][1][2]
             bottom_y_of_parag = same_parag_lines[-1][1][1]
             avg_left_x_of_parag = float(sum([box_x[1][0] for box_x in same_parag_lines]) / len(same_parag_lines))
@@ -179,22 +217,26 @@ class TextPrep:
         tweet_text = []
         last_ending = True
         tweeter_box = None
+        last_line_left_x = None
         added_block_indexes = set()
         for block_i, text_block in enumerate(text_blocks):
-            # print(text_block)
             lines_it = text_block[0]
             lines_last_index = len(lines_it) - 1
             for line_index, line in enumerate(lines_it):
                 line_text = line[0]
                 line_box = line[1]
-                # print(line_text)
-                if tweeter_box is not None and abs(tweeter_bottom_y - line_box[1]) < 36.1:
+                current_line_left_x = line_box[0]
+                current_bottom_y = line_box[1]
+
+                if line_text == self.tw_username_dot:
                     continue
-                if len(self.re_only_letters_whitespace.sub('', line_text)) <= 4 and (not append_trailing_lines or line_index != lines_last_index):
+
+                if tweeter_box is not None and abs(tweeter_bottom_y - current_bottom_y) < self.max_word_y_diff:
+                    # print(f"is same line {line_text} | {tweeter_bottom_y}-{current_bottom_y}={abs(tweeter_bottom_y - current_bottom_y)}<{self.max_word_y_diff}")
                     continue
-                if bool(self.re_replying2.search(line_text)):
-                    # print("zzzzzzzzz", end=' ')
-                    # print(line_text)
+
+                if bool(self.re_replying2.search(line_text)) or line_text == 'olarak':
+                    # print(f"line_text replying {line_text}")
                     tweet_text = []
                     if not append_trailing_lines:
                         tweeter_box = None
@@ -204,17 +246,24 @@ class TextPrep:
                 ending = True if bool(self.re_endoftweet2.search(line_text)) else False
                 if append_trailing_lines:
                     if not ending:
-                        # print(f"eklendi: {line_text}")
-                        tweet_text.append(line_text)
+                        if not len(self.re_only_letters_whitespace.sub('', line_text)) <= 4:
+                            # print(f"eklendi: {line_text}")
+                            tweet_text.append(line_text)
+                        elif line_index != lines_last_index:
+                            # print(f"skipped2: {line_text} {self.re_only_letters_whitespace.sub('', line_text)}")
+                            continue
+                        else:
+                            # print(f"skipped3: {line_text} {self.re_only_letters_whitespace.sub('', line_text)}")
+                            pass
                     if line_index == lines_last_index or ending:
                         if bool(tweet_text):
                             tweet_block2append = self.tweet_block(tweeter_box=tweeter_box, tweet_text_box=' '.join(tweet_text))
                             if block_i not in added_block_indexes:
                                 tweet_blocks.append(tweet_block2append)
+                                # print(tweet_block2append)
+                                # print()
                                 added_block_indexes.add(block_i)
                         tweet_text = []
-                        # print(tweet_block2append)
-                        # print()
                         append_trailing_lines = False
                         break
                 elif line_text.count('@') == 1 or (self.tw_username_dot in line_text and not ending and len(line_text.split(self.tw_username_dot)[0]) >= 0):
@@ -228,11 +277,10 @@ class TextPrep:
                         if bool(tweeter_box_try):
                             tweeter_box = tweeter_box_try.group(1)
                     tweeter_bottom_y = line_box[1]
-                    # print("found", end=' ')
-                    # print(tweeter_box)
-                    # print(line_text)
+                    # print(f"found: {line_text}")
+                    # print()
                     append_trailing_lines = True
-                elif ending and not last_ending:
+                elif ending and not last_ending and last_line_left_x is not None and abs(current_line_left_x - last_line_left_x) < self.max_line_x_diff:
                     block_index_to_extract_text_from = block_i - 1
                     if line_index != 0 and block_i not in added_block_indexes:
                         # print(f"ending l: {line_text}")
@@ -251,7 +299,7 @@ class TextPrep:
                         tweet_blocks.append(tweet_block2append)
                         added_block_indexes.add(block_index_to_extract_text_from)
                 last_ending = ending
-                # last_block_bottom_y = current_block_bottom_y
+                last_line_left_x = current_line_left_x
         return tweet_blocks
 
     def prep_text(self, ocr_data, need_at):
@@ -260,7 +308,6 @@ class TextPrep:
 
         if not bool(tweet_blocks):
             return {"result": "error", "reason": Reasons.DEFAULT}
-
         last_err = None
         tweet_search_models = []
         for tweet_block in reversed(tweet_blocks):

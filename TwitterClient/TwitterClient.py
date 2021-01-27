@@ -105,8 +105,8 @@ class TwitterClient:
                         b_could_be_quote = True
                     break
         else:
-            # if (tweets_vals[0].get("is_quote_status") and len_tweets < 3) or (len_tweets == 2 and (tweets_vals[1].get("self_thread") or tweets_vals[1].get("conversation_id"))):
-            if (tweets_vals[0].get("is_quote_status") and len_tweets < 3) or (len_tweets == 2 and tweets_vals[1].get("self_thread")):
+            if (tweets_vals[0].get("is_quote_status") and len_tweets < 3) or (len_tweets == 2 and (tweets_vals[1].get("self_thread") or tweets_vals[1].get("conversation_id"))):
+            # if (tweets_vals[0].get("is_quote_status") and len_tweets < 3) or (len_tweets == 2 and tweets_vals[1].get("self_thread")):
                 tweet_index_i = 0
             else:
                 tweet_index_i = -1

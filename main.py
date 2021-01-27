@@ -1,7 +1,8 @@
 from Workers import MultiThreadedWorker
 from rStuff import rBot
-from info import *
+from info import useragent, client_id, client_code, bot_username, bot_pass
 from time import sleep
+
 
 if __name__ == '__main__':
     twitterlinker = rBot(useragent, client_id, client_code, bot_username, bot_pass)
