@@ -24,11 +24,12 @@ class TextPrep:
     tweet_block = namedtuple("tweet_block", "tweeter_box tweet_text_box")
 
     def __init__(self, tw_client):
-        self.max_word_x_diff = 0
-        self.max_line_x_diff = 0
-        self.max_line_y_diff = 0
-        self.max_word_y_diff = 0
-        self.other_chars_bottom_y_diff_plus = 0
+        self.max_word_x_diff = None
+        self.max_line_x_diff = None
+        self.max_line_y_diff = None
+        self.max_word_y_diff = None
+        self.plus_y_for_chars_with_tails = None
+        self.plus_y_for_lil_dot = None
         self.tw_client = tw_client
 
         self.d = False
@@ -47,16 +48,17 @@ class TextPrep:
             _f_ = f'%.{_f}f'
             return float(_f_ % flt)
 
-        self.max_word_y_diff = 15.85
+        # self.max_word_y_diff = 15.85
         self.max_word_x_diff = 59.0
-        self.max_line_x_diff = 32.5
-        self.max_line_y_diff = 37.1
-        self.other_chars_bottom_y_diff_plus = 6.0
+        self.max_line_x_diff = 30.9
+        # self.max_line_y_diff = 37.1
+        self.plus_y_for_chars_with_tails = 6.0
+        self.plus_y_for_lil_dot = 1.0
 
         text_annotations = ocr_data['textAnnotations'][1:]
         vertice_texts = []
         id_incrementer = 0
-        # total_y_diff_of_words = 0
+        total_y_diff_of_words = 0
         for text_annotation in text_annotations:
             vertices = text_annotation['boundingPoly']['vertices']
             text = text_annotation['description']
@@ -65,20 +67,22 @@ class TextPrep:
                 x_val = vertice.get('x', 0)
                 y_val = vertice.get('y', 0)
                 if text == self.tw_username_dot and (vertic_i == 0 or vertic_i == 1):
-                    y_val += self.other_chars_bottom_y_diff_plus
+                    y_val += self.plus_y_for_lil_dot
                 elif text == self.tw_username_dot and (vertic_i == 2 or vertic_i == 3):
-                    y_val -= self.other_chars_bottom_y_diff_plus
+                    y_val -= self.plus_y_for_lil_dot
 
                 if any(lt in text for lt in ['g', 'p', 'y', 'ğ']) and (vertic_i == 0 or vertic_i == 1):
-                    y_val -= self.other_chars_bottom_y_diff_plus
+                    y_val -= self.plus_y_for_chars_with_tails
 
                 box.append((x_val, y_val))
-            # total_y_diff_of_words += abs((box[0][1] + box[1][1]) - (box[2][1] + box[3][1])) / 2
+            total_y_diff_of_words += abs((box[0][1] + box[1][1]) - (box[2][1] + box[3][1])) / 2
             vertice_texts.append((text, tuple(box), id_incrementer))
             id_incrementer += 1
 
-        # avg_y_diff_of_words = total_y_diff_of_words / id_incrementer
-        # print(avg_y_diff_of_words)
+        avg_y_diff_of_words = total_y_diff_of_words / id_incrementer
+
+        self.max_word_y_diff = 0.2516 * avg_y_diff_of_words + 8.55
+        self.max_line_y_diff = 0.5639 * avg_y_diff_of_words + 20.7459
 
         # latest_vertice_bottom_y = vertice_texts[-1][1][0][1]
         # first_vertice_top_y = vertice_texts[0][1][3][0]
@@ -184,8 +188,9 @@ class TextPrep:
                 check_left_x_diff = abs(avg_left_x_of_line_base - avg_left_x_of_line)
                 self._print_b(f"last elem {line_last_elem}")
                 self._print_b(f"ref: {line}")
-                self._print_b(f"{ref_elem_y_of_top} - {last_elem_y_of_bottom}")
-                self._print_b(f"{bottom_top_min_diff} < {self.max_line_y_diff} : {check_left_x_diff}<{self.max_line_x_diff}")
+                self._print_b(f"y {ref_elem_y_of_top} - {last_elem_y_of_bottom}")
+                self._print_b(f"x {avg_left_x_of_line_base} - {avg_left_x_of_line}")
+                self._print_b(f"y {bottom_top_min_diff} < {self.max_line_y_diff} : x {check_left_x_diff}<{self.max_line_x_diff}")
                 if check_left_x_diff < self.max_line_x_diff and bottom_top_min_diff < self.max_line_y_diff:
                     red_references.add(line[2])
                     same_parag_lines.append(line[:2])
@@ -242,8 +247,8 @@ class TextPrep:
                 ending = True if bool(self.re_endoftweet2.search(line_text)) else False
                 if append_trailing_lines:
                     if not ending:
-                        if not len(self.re_only_letters_whitespace.sub('', line_text)) <= 4:
-                            # print(f"eklendi: {line_text}")
+                        if len(self.re_only_letters_whitespace.sub('', line_text)) > 4:
+                            # print(f"eklendi: {line_text} {len(self.re_only_letters_whitespace.sub('', line_text))}")
                             tweet_text.append(line_text)
                         elif line_index != lines_last_index:
                             # print(f"skipped2: {line_text} {self.re_only_letters_whitespace.sub('', line_text)}")
