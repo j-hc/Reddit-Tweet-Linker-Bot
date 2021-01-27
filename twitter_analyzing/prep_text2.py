@@ -331,21 +331,20 @@ class TextPrep:
                 continue
 
             search_list = tweet_block.tweet_text_box.split()
-            # tweet_text_filter = [x for x in tweet_block.tweet_text_box.split() if not all(likelylink in x for likelylink in ['/', '…'])]
             tweet_text_filter = filter(lambda w: not (w is None or all(x in w for x in ['.', '/'])), search_list)
             tweet_text_filter = ' '.join(tweet_text_filter)
             # tweet_text_filter = ' '.join(filter(lambda w: len(w) > 2, tweet_text_filter))
             tweet_text_filter = self.re_two_space.sub(' ', tweet_text_filter)
 
             if not bool(tweet_text_filter):
-                # print("no text prepped")
+                # no text prepped
                 last_err = {"result": "error", "reason": Reasons.DEFAULT}
                 continue
 
             min_letters = 7 if at_to_be_used and not need_at else 14
             if len(tweet_text_filter.replace(' ', '')) < min_letters:
                 last_err = {"result": "error", "reason": Reasons.TOO_SHORT_NO_AT}
-                # print("too short and there is no at")
+                # too short and there is no at
                 continue
 
             possibe_search_text = []
@@ -367,9 +366,6 @@ class TextPrep:
                     strs += [' '.join(search_text_s[i:i + n_1]) for i in range(0, len(search_text_s), n_1)]
                     z_len_s = len(strs[-2].split())
                     f_len_s = len(strs[0].split())
-
-                    # if len(strs[-1].split()) < min_word_i:
-                    #     strs.pop(-1)
                     n_1 -= 1
 
                 strs = set(strs)
