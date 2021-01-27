@@ -5,10 +5,6 @@ from math import ceil
 from collections import namedtuple
 
 
-# from .vision_ocr_utils import ymarker2, mergeNearByWords
-# from copy import deepcopy
-
-
 class TextPrep:
     #  YES I KNOW THIS WHOLE THING IS UGLY ASF
 
@@ -51,10 +47,10 @@ class TextPrep:
             _f_ = f'%.{_f}f'
             return float(_f_ % flt)
 
-        self.max_word_y_diff = 15.85  # 19.6 # 15.85 eline uyan
-        self.max_word_x_diff = 59.0  # 42 # 29.13 # 59 sariyer # and you calling it 92.6
-        self.max_line_x_diff = 32.5  # 32.5
-        self.max_line_y_diff = 37.1  # 37 # 34 calling it # old 48
+        self.max_word_y_diff = 15.85
+        self.max_word_x_diff = 59.0
+        self.max_line_x_diff = 32.5
+        self.max_line_y_diff = 37.1
         self.other_chars_bottom_y_diff_plus = 6.0
 
         text_annotations = ocr_data['textAnnotations'][1:]
@@ -311,7 +307,6 @@ class TextPrep:
         last_err = None
         tweet_search_models = []
         for tweet_block in reversed(tweet_blocks):
-            # print(tweet_block)
             at_to_be_used = None
             if tweet_block.tweeter_box is not None:
                 account_status = self.tw_client.get_twitter_account_status(tweet_block.tweeter_box)
@@ -373,7 +368,6 @@ class TextPrep:
                     n_1 -= 1
 
                 strs = set(strs)
-                # strs = list(filter(lambda str_: len(str_.replace(' ', '')) >= 8, strs))
                 strs = list(filter(lambda str_: len(str_.replace(' ', '')) >= min_letters and len(str_.split()) >= min_word_i, strs))
                 strs.sort(key=lambda x: len(x.split()), reverse=True)
 
