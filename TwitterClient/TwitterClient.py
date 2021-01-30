@@ -1,6 +1,5 @@
 import requests
 import re
-from collections import OrderedDict
 from .TW_user_status import TWStatus
 from http import cookiejar
 from requests.exceptions import ConnectionError
@@ -66,7 +65,7 @@ class TwitterClient:
             self.req_sesh.headers.update({'Accept-Language': "en-US,en;q=0.5"})
         params = (
             ('q', query),
-            ('count', '1'),  # i only want the first result for now
+            ('count', '1'),  # i only want the first result
             ('include_cards', 'false'), ('include_my_retweet', '0'), ('include_blocked_by', 'true'),
             ('include_reply_count', 'false'), ('include_descendent_reply_count', 'false'), ('include_blocking', 'true'),
             ('include_profile_interstitial_type', '1'), ('include_blocking', '1'), ('include_followed_by', '1'),
@@ -77,43 +76,39 @@ class TwitterClient:
         )
         response_r = self.handled_get(f'{self.HOST}/2/search/adaptive.json', params=params)
         # print(response_r.text)
-        response = response_r.json(object_pairs_hook=OrderedDict)
+        response = response_r.json()
         try:
             tweets = response['globalObjects']['tweets']
             users = response['globalObjects']['users']
         except:
             return {}
 
-        tweets_vals = list(tweets.values())
-        len_tweets = len(tweets)
-
         if not bool(tweets):
             return {}
 
-        b_could_be_quote = False
-        the_tweet = None
-        user_id_str = None
-        if from_whom:
-            for user in users:
-                if users[user]['screen_name'] == from_whom:
-                    user_id_str = user
+        tweets_vals = list(tweets.values())
+        len_tweets = len(tweets)
+
+        if len_tweets != 1:
+            try:
+                items = response['timeline']['instructions'][0]['addEntries']['entries'][0]['content']['timelineModule']['items']
+            except Exception as e:
+                raise Exception(response_r.text) from e
+            for item in reversed(items):
+                item_tweet = item['item']['content']['tweet']
+                if item_tweet.get('highlights') is not None:
+                    the_tweet_id = item_tweet['id']
+                    the_tweet = tweets[the_tweet_id]
                     break
-            for tweet in tweets:
-                if tweets[tweet]['user_id_str'] == user_id_str:
-                    the_tweet = tweets[tweet]
-                    if the_tweet['is_quote_status'] and len_tweets == 2:
-                        b_could_be_quote = True
-                    break
-        else:
-            if (tweets_vals[0].get("is_quote_status") and len_tweets < 3) or (len_tweets == 2 and (tweets_vals[1].get("self_thread") or tweets_vals[1].get("conversation_id"))):
-            # if (tweets_vals[0].get("is_quote_status") and len_tweets < 3) or (len_tweets == 2 and tweets_vals[1].get("self_thread")):
-                tweet_index_i = 0
             else:
-                tweet_index_i = -1
-            # if len_tweets == 2 and tweets_vals[1].get("is_quote_status"):
-            if tweets_vals[0].get("is_quote_status") and len_tweets < 3:
-                b_could_be_quote = True
-            the_tweet = tweets_vals[tweet_index_i]
+                the_tweet = tweets_vals[-1]
+        else:
+            the_tweet = tweets_vals[0]
+
+        if tweets_vals[0].get("is_quote_status") and len_tweets < 3:
+            b_could_be_quote = True
+        else:
+            b_could_be_quote = False
 
         if the_tweet is None:
             return {}

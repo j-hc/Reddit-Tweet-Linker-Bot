@@ -4,7 +4,7 @@ from info import useragent, client_id, client_code, bot_username, bot_pass
 from time import sleep
 
 
-if __name__ == '__main__':
+def main():
     twitterlinker = rBot(useragent, client_id, client_code, bot_username, bot_pass)
 
     subs_listening_by_new = ["turkey", "svihs", "testyapiyorum", "kgbtr", "ateistturk"]
@@ -18,3 +18,7 @@ if __name__ == '__main__':
             print(f"searching jobs: {[search[1].data.to_answer for search in list(multi_threaded_worker.job_q.queue)[:10]]}")
             print(f"replying jobs: {[replyy[1].data.thing for replyy in list(multi_threaded_worker.reply_q.queue)[:10]]}")
         sleep(15)
+
+
+if __name__ == '__main__':
+    main()

@@ -82,16 +82,20 @@ class rBot:
     def get_new_token(self):
         client_auth = requests.auth.HTTPBasicAuth(self.client_id, self.client_code)
         post_data = {"grant_type": "password", "username": self.bot_username, "password": self.bot_pass}
-        response_token_ = requests.post(f"{rBase}/api/v1/access_token", auth=client_auth, data=post_data,
-                                        headers={"User-Agent": self.useragent})
-        try:
-            response_token = response_token_.json()
-        except:
-            raise Exception(response_token_.text)
-        self.next_token_t = int(time()) + response_token['expires_in'] - 15
-        access_token = response_token['access_token']
-        logger.info('got new token: ' + access_token)
-        self.req_sesh.headers.update({"Authorization": f"bearer {access_token}"})
+
+        while True:
+            response_token_ = requests.post(f"{rBase}/api/v1/access_token", auth=client_auth, data=post_data,
+                                            headers={"User-Agent": self.useragent})
+            try:
+                response_token = response_token_.json()
+            except:
+                sleep(30)
+                continue
+            self.next_token_t = int(time()) + response_token['expires_in'] - 15
+            access_token = response_token['access_token']
+            logger.info('got new token: ' + access_token)
+            self.req_sesh.headers.update({"Authorization": f"bearer {access_token}"})
+            break
 
     def read_notifs(self, notifs):
         ids = [notif.id_ for notif in notifs]

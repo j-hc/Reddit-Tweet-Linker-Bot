@@ -8,5 +8,4 @@ cs.json
 rbot.log
 rutil.log
 db/TweetDB.db
-main_old.py
 pre.py

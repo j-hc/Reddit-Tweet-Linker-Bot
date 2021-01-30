@@ -23,7 +23,7 @@ class VisionOCR:
 
         params = {"key": vision_ocr_api_key}
         data = json.dumps({"requests": [{"image": image_data, "features": [{"type": "TEXT_DETECTION"}]}]})
-        for _ in range(2):
+        for _ in range(3):
             response = requests.post("https://vision.googleapis.com/v1/images:annotate", data=data, params=params)
             responses_zero = response.json()['responses'][0]
             if responses_zero.get('textAnnotations') is None:

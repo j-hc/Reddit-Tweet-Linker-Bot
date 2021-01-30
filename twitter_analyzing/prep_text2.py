@@ -66,9 +66,9 @@ class TextPrep:
             for vertic_i, vertice in enumerate(reversed(vertices)):
                 x_val = vertice.get('x', 0)
                 y_val = vertice.get('y', 0)
-                if text == self.tw_username_dot and (vertic_i == 0 or vertic_i == 1):
+                if (text == self.tw_username_dot or text == '-') and (vertic_i == 0 or vertic_i == 1):
                     y_val += self.plus_y_for_lil_dot
-                elif text == self.tw_username_dot and (vertic_i == 2 or vertic_i == 3):
+                elif (text == self.tw_username_dot or text == '-') and (vertic_i == 2 or vertic_i == 3):
                     y_val -= self.plus_y_for_lil_dot
 
                 if any(lt in text for lt in ['g', 'p', 'y', 'ğ']) and (vertic_i == 0 or vertic_i == 1):
@@ -282,8 +282,8 @@ class TextPrep:
                     # print()
                     append_trailing_lines = True
                 elif ending and not last_ending and last_line_left_x is not None and abs(current_line_left_x - last_line_left_x) < self.max_line_x_diff:
-                    block_index_to_extract_text_from = block_i - 1
-                    if line_index != 0 and block_i not in added_block_indexes:
+                    block_i_to_extract_text_from = block_i - 1
+                    if line_index != 0 and all(indx not in added_block_indexes for indx in [block_i, block_i - 1]):
                         # print(f"ending l: {line_text}")
                         lines_of_possible_tweet = lines_it[:line_index]
                         lines_text_only = ' '.join([li[0] for li in lines_of_possible_tweet
@@ -291,14 +291,14 @@ class TextPrep:
                         tweet_block2append = self.tweet_block(tweeter_box=None, tweet_text_box=lines_text_only)
                         tweet_blocks.append(tweet_block2append)
                         added_block_indexes.add(block_i)
-                    elif block_i != 0 and block_index_to_extract_text_from not in added_block_indexes:
+                    elif block_i != 0 and all(indx not in added_block_indexes for indx in [block_i_to_extract_text_from, block_i_to_extract_text_from - 1]):
                         # print(f"ending b: {line_text}")
-                        lines_of_possible_tweet = text_blocks[block_index_to_extract_text_from][0]
+                        lines_of_possible_tweet = text_blocks[block_i_to_extract_text_from][0]
                         lines_text_only = ' '.join([li[0] for li in lines_of_possible_tweet
                                                     if self.re_endoftweet2.search(li[0]) is None and self.re_replying2.search(li[0]) is None])
                         tweet_block2append = self.tweet_block(tweeter_box=None, tweet_text_box=lines_text_only)
                         tweet_blocks.append(tweet_block2append)
-                        added_block_indexes.add(block_index_to_extract_text_from)
+                        added_block_indexes.add(block_i_to_extract_text_from)
                 last_ending = ending
                 last_line_left_x = current_line_left_x
         return tweet_blocks
