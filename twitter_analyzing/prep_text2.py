@@ -15,7 +15,7 @@ class TextPrep:
     re_endoftweet2 = re.compile(r'Twitter for|Translate Tweet|Tweeti Çevir|Twitter Web App|PM - |for (iOS|Android)| Translate from |\d{1,2}[/.-]\d{1,2}[/.-]\d{1,4}|'
                                 r'Show this thread|dilinden Google tarafından|[0-9].*? Retweet.*?[0-9].*? Beğeni|Bu Tweet dizisini göster|Tweet etkinliğini görüntüle|'
                                 r'[0-9].*? Retweets.*?[0-9].*? Likes|Show replies')
-    re_twitterusername2 = re.compile(r"@([A-Za-z0-9_]{3,15})")
+    re_twitterusername2 = re.compile(r"@([A-Za-z0-9_]{3,17})")
 
     re_two_space = re.compile(' +')
     re_only_letters_whitespace = re.compile('[^a-zA-Z!?ışçöğü ]')
@@ -48,10 +48,8 @@ class TextPrep:
             _f_ = f'%.{_f}f'
             return float(_f_ % flt)
 
-        # self.max_word_y_diff = 15.85
         self.max_word_x_diff = 59.0
         self.max_line_x_diff = 30.9
-        # self.max_line_y_diff = 37.1
         self.plus_y_for_chars_with_tails = 6.0
         self.plus_y_for_lil_dot = 1.0
 
@@ -82,14 +80,7 @@ class TextPrep:
         avg_y_diff_of_words = total_y_diff_of_words / id_incrementer
 
         self.max_word_y_diff = 0.2516 * avg_y_diff_of_words + 8.55
-        self.max_line_y_diff = 0.5639 * avg_y_diff_of_words + 20.7459
-
-        # latest_vertice_bottom_y = vertice_texts[-1][1][0][1]
-        # first_vertice_top_y = vertice_texts[0][1][3][0]
-        # y_difference = latest_vertice_bottom_y - first_vertice_top_y
-
-        # print(f"y diff: {y_difference} max_line_y_diff: {self.max_line_y_diff}")
-        # print(f"y diff: {y_difference} max_word_y_diff: {self.max_word_y_diff}")
+        self.max_line_y_diff = 0.67 * avg_y_diff_of_words + 22.7  # 0.5639 * avg_y_diff_of_words + 20.7459
 
         lines = []
         red_references = set()
@@ -273,7 +264,9 @@ class TextPrep:
                         tweeter_line_text = line_text.split('@')[1].split()[0]
                     except:
                         tweeter_line_text = line_text
-                    if self.three_dot not in tweeter_line_text:
+
+                    # if self.three_dot not in tweeter_line_text:
+                    if not (self.three_dot in tweeter_line_text or ('.' in tweeter_line_text and self.tw_username_dot in line_text)):
                         tweeter_box_try = self.re_twitterusername2.search(line_text)
                         if bool(tweeter_box_try):
                             tweeter_box = tweeter_box_try.group(1)

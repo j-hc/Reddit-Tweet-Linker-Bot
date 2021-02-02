@@ -82,30 +82,40 @@ class TwitterClient:
             users = response['globalObjects']['users']
         except:
             return {}
-
         if not bool(tweets):
             return {}
 
         tweets_vals = list(tweets.values())
         len_tweets = len(tweets)
-
         if len_tweets != 1:
-            try:
-                items = response['timeline']['instructions'][0]['addEntries']['entries'][0]['content']['timelineModule']['items']
-            except Exception as e:
-                raise Exception(response_r.text) from e
-            for item in reversed(items):
-                item_tweet = item['item']['content']['tweet']
-                if item_tweet.get('highlights') is not None:
-                    the_tweet_id = item_tweet['id']
+            def json_extract(obj, key):
+                arr = []
+                def extract(obj, arr, key):
+                    if isinstance(obj, dict):
+                        for k, v in obj.items():
+                            if k == key:
+                                arr.append(v)
+                            if isinstance(v, (dict, list)):
+                                extract(v, arr, key)
+                    elif isinstance(obj, list):
+                        for item in obj:
+                            extract(item, arr, key)
+                    return arr
+                values = extract(obj, arr, key)
+                return values
+            entries = response['timeline']['instructions'][0]['addEntries']['entries']
+            tws = json_extract(entries, 'tweet')
+            for tw in reversed(tws):
+                if tw.get('highlights') is not None:
+                    the_tweet_id = tw['id']
                     the_tweet = tweets[the_tweet_id]
                     break
             else:
-                the_tweet = tweets_vals[-1]
+                the_tweet = None
         else:
             the_tweet = tweets_vals[0]
 
-        if tweets_vals[0].get("is_quote_status") and len_tweets < 3:
+        if len_tweets == 2 and tweets_vals[1].get("is_quote_status"):
             b_could_be_quote = True
         else:
             b_could_be_quote = False
