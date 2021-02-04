@@ -9,16 +9,18 @@ class TextPrep:
     #  YES I KNOW THIS WHOLE THING IS UGLY ASF
 
     tw_username_dot = "·"
-    three_dot = ".."  # … for yandex ocr # . for vision ocr
+    three_dot = ".."  # … for yandex ocr
 
-    re_replying2 = re.compile(r'Antwort an|Replying to|adlı kişiye|adlı kullanıcı(lara|ya)|yanıt olarak|svar till|ve diğer [0-9]+ kişiye|En réponse à|En respuesta a')
+    re_replying2 = re.compile(r'Antwort an|Replying to|adlı kişiye|adlı kullanıcı(lara|ya)|yanıt olarak|svar till|ve diğer [0-9]+ kişiye|En réponse à|En respuesta a|'
+                              r'@(.*?), @(.*?) (ve|and) @(.*?)|Em resposta a')
+
     re_endoftweet2 = re.compile(r'Twitter for|Translate Tweet|Tweeti Çevir|Twitter Web App|PM - |for (iOS|Android)| Translate from |\d{1,2}[/.-]\d{1,2}[/.-]\d{1,4}|'
                                 r'Show this thread|dilinden Google tarafından|[0-9].*? Retweet.*?[0-9].*? Beğeni|Bu Tweet dizisini göster|Tweet etkinliğini görüntüle|'
-                                r'[0-9].*? Retweets.*?[0-9].*? Likes|Show replies')
+                                r'[0-9].*? Retweets.*?[0-9].*? Likes|Show replies|\d{2}:\d{2}\s?(?:AM|PM)* ·')
     re_twitterusername2 = re.compile(r"@([A-Za-z0-9_]{3,17})")
 
     re_two_space = re.compile(' +')
-    re_only_letters_whitespace = re.compile('[^a-zA-Z!?ışçöğü ]')
+    re_only_letters_whitespace = re.compile('[^a-zA-Z!?ışçöğüİŞÇÖĞÜ ]')
 
     tweet_search_model = namedtuple("tweet_search_model", "possible_at possibe_search_text no_at_variaton")
     tweet_block = namedtuple("tweet_block", "tweeter_box tweet_text_box")
@@ -50,7 +52,7 @@ class TextPrep:
 
         self.max_word_x_diff = 59.0
         self.max_line_x_diff = 30.9
-        self.plus_y_for_chars_with_tails = 6.0
+        self.plus_y_for_chars_with_tails = 5.0
         self.plus_y_for_lil_dot = 1.0
 
         text_annotations = ocr_data['textAnnotations'][1:]
@@ -69,7 +71,7 @@ class TextPrep:
                 elif (text == self.tw_username_dot or text == '-') and (vertic_i == 2 or vertic_i == 3):
                     y_val -= self.plus_y_for_lil_dot
 
-                if any(lt in text for lt in ['g', 'p', 'y', 'ğ']) and (vertic_i == 0 or vertic_i == 1):
+                if any(lt in text for lt in ['g', 'p', 'y', 'ğ', 'ç', 'ş']) and (vertic_i == 0 or vertic_i == 1):
                     y_val -= self.plus_y_for_chars_with_tails
 
                 box.append((x_val, y_val))
@@ -210,6 +212,7 @@ class TextPrep:
         last_ending = True
         tweeter_box = None
         last_line_left_x = None
+        tweeter_bottom_y = 0
         added_block_indexes = set()
         for block_i, text_block in enumerate(text_blocks):
             lines_it = text_block[0]
@@ -223,7 +226,7 @@ class TextPrep:
                 if line_text == self.tw_username_dot:
                     continue
 
-                if tweeter_box is not None and abs(tweeter_bottom_y - current_bottom_y) < self.max_word_y_diff:
+                if append_trailing_lines and abs(tweeter_bottom_y - current_bottom_y) < self.max_word_y_diff:
                     # print(f"is same line {line_text} | {tweeter_bottom_y}-{current_bottom_y}={abs(tweeter_bottom_y - current_bottom_y)}<{self.max_word_y_diff}")
                     continue
 
@@ -248,6 +251,7 @@ class TextPrep:
                             # print(f"skipped3: {line_text} {self.re_only_letters_whitespace.sub('', line_text)}")
                             pass
                     if line_index == lines_last_index or ending:
+                        # print(f"ending or: {line_text}")
                         if bool(tweet_text):
                             tweet_block2append = self.tweet_block(tweeter_box=tweeter_box, tweet_text_box=' '.join(tweet_text))
                             if block_i not in added_block_indexes:

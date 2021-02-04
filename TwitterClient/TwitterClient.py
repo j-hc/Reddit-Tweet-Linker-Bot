@@ -69,10 +69,10 @@ class TwitterClient:
             ('include_cards', 'false'), ('include_my_retweet', '0'), ('include_blocked_by', 'true'),
             ('include_reply_count', 'false'), ('include_descendent_reply_count', 'false'), ('include_blocking', 'true'),
             ('include_profile_interstitial_type', '1'), ('include_blocking', '1'), ('include_followed_by', '1'),
-            ('include_want_retweets', '1'), ('include_mute_edge', '1'), ('skip_status', '1'), ('model_version', '7'),
+            ('include_want_retweets', '1'), ('include_mute_edge', '1'), ('skip_status', '1'),
             ('include_ext_alt_text', 'true'), ('include_quote_count', 'false'), ('include_reply_count', '0'),
             ('tweet_mode', 'compat'), ('include_entities', 'false'), ('include_user_entities', 'false'),
-            ('send_error_codes', 'true'), ('simple_quoted_tweet', 'false'), ('query_source', ''), ('pc', '1'),
+            ('send_error_codes', 'true'), ('simple_quoted_tweet', 'false'), ('pc', '1'), ('tweet_search_mode', 'live')
         )
         response_r = self.handled_get(f'{self.HOST}/2/search/adaptive.json', params=params)
         # print(response_r.text)
@@ -85,43 +85,12 @@ class TwitterClient:
         if not bool(tweets):
             return {}
 
-        tweets_vals = list(tweets.values())
-        len_tweets = len(tweets)
-        if len_tweets != 1:
-            def json_extract(obj, key):
-                arr = []
-                def extract(obj, arr, key):
-                    if isinstance(obj, dict):
-                        for k, v in obj.items():
-                            if k == key:
-                                arr.append(v)
-                            if isinstance(v, (dict, list)):
-                                extract(v, arr, key)
-                    elif isinstance(obj, list):
-                        for item in obj:
-                            extract(item, arr, key)
-                    return arr
-                values = extract(obj, arr, key)
-                return values
-            entries = response['timeline']['instructions'][0]['addEntries']['entries']
-            tws = json_extract(entries, 'tweet')
-            for tw in reversed(tws):
-                if tw.get('highlights') is not None:
-                    the_tweet_id = tw['id']
-                    the_tweet = tweets[the_tweet_id]
-                    break
-            else:
-                the_tweet = None
-        else:
-            the_tweet = tweets_vals[0]
+        the_tweet = list(response['globalObjects']['tweets'].values())[0]
 
-        if len_tweets == 2 and tweets_vals[1].get("is_quote_status"):
+        if the_tweet.get("is_quote_status"):
             b_could_be_quote = True
         else:
             b_could_be_quote = False
-
-        if the_tweet is None:
-            return {}
 
         tweet_id = the_tweet['id_str']
         user_id_str = the_tweet['user_id_str']
