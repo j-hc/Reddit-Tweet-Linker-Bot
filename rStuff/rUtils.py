@@ -60,7 +60,7 @@ class rPost:
                     self.gallery_media.append(f"https://i.redd.it/{gallery_id}.{img_m}")
                     self.is_img = True
             except AttributeError:
-                self.is_img = False
+                pass
         else:
             self.url = content['url']  # url
             self.is_img = self._is_img_post()

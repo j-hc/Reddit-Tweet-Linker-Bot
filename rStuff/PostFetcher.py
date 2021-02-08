@@ -29,30 +29,33 @@ class PostFetcher:
         self.pagination_param = None
 
         if multiname is not None:
-            self._uri = f"{self.bot.base}/user/{self.bot.bot_username}/m/{multiname}/"
+            self._uri = f"{self.bot.base}/user/{self.bot.bot_username}/m/{multiname}/{self.sort_by}"
         else:
-            self._uri = f"{self.bot.base}/r/{'+'.join(self.subs)}/"
-        self._uri += self.sort_by
+            self._uri = f"{self.bot.base}/r/{'+'.join(self.subs)}/{self.sort_by}"
 
     def fetch_posts(self):
         posts_req = self.bot.handled_req('GET', self._uri, params=self.params).json()
         posts = posts_req["data"]["children"]
         posts_len = posts_req["data"]["dist"]
-        last_post_index = posts_len - 1
 
-        for index, post in enumerate(posts):
+        if self.before_or_after == "before":
+            posts_iter = enumerate(posts)
+        elif self.before_or_after == "after":
+            posts_iter = enumerate(reversed(posts))
+        else:
+            raise NotImplementedError
+
+        for index, post in posts_iter:
             the_post = rPost(post)
             if the_post.id_ in self.last_fetched_ids or (self.stop_if_saved and the_post.is_saved):
                 break
+            # self.bot.save_thing_by_id(the_post.id_)
             if self.skip_if_nsfw and the_post.over_18:
                 continue
-            # self.bot.save_thing_by_id(the_post.id_)
-            if self.stop_if_saved:
-                if index == 0 and self.before_or_after == 'before':
-                    self.bot.save_thing_by_id(the_post.id_)
-                elif index == last_post_index and self.before_or_after == 'after':
-                    self.bot.save_thing_by_id(the_post.id_)
             yield the_post
+
+        if posts_len != 0 and self.stop_if_saved:
+            self.bot.save_thing_by_id(posts[self._pagination_post_indexer]['data']['name'])
 
         if self.pagination:
             if self.before_or_after == "before":

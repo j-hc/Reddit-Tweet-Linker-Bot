@@ -47,7 +47,8 @@ class TwitterClient:
                 return response
 
     def _get_gt_token(self):
-        response = requests.get('https://twitter.com/', headers={'User-Agent': 'Mozilla/5.0 Gecko/20100101 Firefox/80.0'}, proxies={'https': twitter_client_proxy})
+        response = requests.get('https://twitter.com/', headers={'User-Agent': 'Mozilla/5.0 Gecko/20100101 Firefox/80.0'},
+                                proxies={'https': twitter_client_proxy})
         gt_token = re.search(b'gt=([0-9]*)', response.content).group(1).decode()
         self.req_sesh.headers.update({"x-guest-token": gt_token})
 
@@ -85,12 +86,37 @@ class TwitterClient:
         if not bool(tweets):
             return {}
 
-        the_tweet = list(response['globalObjects']['tweets'].values())[0]
+        tweets_vals = list(response['globalObjects']['tweets'].values())
+        if len(tweets) != 1:
+            def json_extract(obj, key):
+                arr = []
 
-        if the_tweet.get("is_quote_status"):
-            b_could_be_quote = True
+                def extract(obj, arr, key):
+                    if isinstance(obj, dict):
+                        for k, v in obj.items():
+                            if k == key:
+                                arr.append(v)
+                            if isinstance(v, (dict, list)):
+                                extract(v, arr, key)
+                    elif isinstance(obj, list):
+                        for item in obj:
+                            extract(item, arr, key)
+                    return arr
+
+                values = extract(obj, arr, key)
+                return values
+
+            entries = response['timeline']['instructions'][0]['addEntries']['entries']
+            for tw in reversed(json_extract(entries, 'tweet')):
+                if tw.get('highlights') is not None:
+                    the_tweet = tweets[tw['id']]
+                    break
+            else:
+                the_tweet = tweets_vals[-1]
         else:
-            b_could_be_quote = False
+            the_tweet = tweets_vals[0]
+
+        b_could_be_quote = the_tweet.get("is_quote_status", False)
 
         tweet_id = the_tweet['id_str']
         user_id_str = the_tweet['user_id_str']

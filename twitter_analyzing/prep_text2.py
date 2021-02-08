@@ -30,11 +30,11 @@ class TextPrep:
         self.max_line_x_diff = None
         self.max_line_y_diff = None
         self.max_word_y_diff = None
-        self.plus_y_for_chars_with_tails = None
+        self.minus_y_for_chars_with_tails = None
         self.plus_y_for_lil_dot = None
         self.tw_client = tw_client
 
-        self.d = False
+        self.d = True
         self.b = False
 
     def _print_d(self, p=''):
@@ -50,9 +50,9 @@ class TextPrep:
             _f_ = f'%.{_f}f'
             return float(_f_ % flt)
 
-        self.max_word_x_diff = 59.0
-        self.max_line_x_diff = 30.9
-        self.plus_y_for_chars_with_tails = 5.0
+        # self.max_word_x_diff = 27.5 # 59.0  # 27.5  # 66.0
+        # self.max_line_x_diff = 30.9  # 30.9  # 52.3
+        self.minus_y_for_chars_with_tails = 5.0
         self.plus_y_for_lil_dot = 1.0
 
         text_annotations = ocr_data['textAnnotations'][1:]
@@ -66,13 +66,14 @@ class TextPrep:
             for vertic_i, vertice in enumerate(reversed(vertices)):
                 x_val = vertice.get('x', 0)
                 y_val = vertice.get('y', 0)
-                if (text == self.tw_username_dot or text == '-') and (vertic_i == 0 or vertic_i == 1):
-                    y_val += self.plus_y_for_lil_dot
-                elif (text == self.tw_username_dot or text == '-') and (vertic_i == 2 or vertic_i == 3):
-                    y_val -= self.plus_y_for_lil_dot
+                if text == self.tw_username_dot or text == '-':
+                    if vertic_i == 0 or vertic_i == 1:
+                        y_val += self.plus_y_for_lil_dot
+                    elif vertic_i == 2 or vertic_i == 3:
+                        y_val -= self.plus_y_for_lil_dot
 
                 if any(lt in text for lt in ['g', 'p', 'y', 'ğ', 'ç', 'ş']) and (vertic_i == 0 or vertic_i == 1):
-                    y_val -= self.plus_y_for_chars_with_tails
+                    y_val -= self.minus_y_for_chars_with_tails
 
                 box.append((x_val, y_val))
             total_y_diff_of_words += abs((box[0][1] + box[1][1]) - (box[2][1] + box[3][1])) / 2
@@ -81,8 +82,11 @@ class TextPrep:
 
         avg_y_diff_of_words = total_y_diff_of_words / id_incrementer
 
-        self.max_word_y_diff = 0.2516 * avg_y_diff_of_words + 8.55
-        self.max_line_y_diff = 0.67 * avg_y_diff_of_words + 22.7  # 0.5639 * avg_y_diff_of_words + 20.7459
+        self.max_word_y_diff = 0.23 * avg_y_diff_of_words + 7.48
+        self.max_line_y_diff = 0.67 * avg_y_diff_of_words + 22.7
+
+        self.max_word_x_diff = 0.73 * avg_y_diff_of_words + 7.3
+        self.max_line_x_diff = 0.3618 * avg_y_diff_of_words + 19.53
 
         lines = []
         red_references = set()

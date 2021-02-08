@@ -18,8 +18,8 @@ class RedditWorkers:
         self.job_q = job_q
 
         self.score_listener_interval = 130
-        self.sub_feed_listener_interval = 30
-        self.notif_listener_interval = 10
+        self.sub_feed_listener_interval = 28
+        self.notif_listener_interval = 9
 
     def score_listener(self):
         try:
