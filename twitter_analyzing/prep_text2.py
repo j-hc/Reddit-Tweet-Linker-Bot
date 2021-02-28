@@ -34,11 +34,16 @@ class TextPrep:
         self.plus_y_for_lil_dot = None
         self.tw_client = tw_client
 
-        self.d = True
+        self.d = False
         self.b = False
+        self.t = True
 
     def _print_d(self, p=''):
         if self.d:
+            print(p)
+
+    def _print_t(self, p=''):
+        if self.t:
             print(p)
 
     def _print_b(self, p=''):
@@ -231,11 +236,11 @@ class TextPrep:
                     continue
 
                 if append_trailing_lines and abs(tweeter_bottom_y - current_bottom_y) < self.max_word_y_diff:
-                    # print(f"is same line {line_text} | {tweeter_bottom_y}-{current_bottom_y}={abs(tweeter_bottom_y - current_bottom_y)}<{self.max_word_y_diff}")
+                    self._print_t(f"is same line {line_text} | {tweeter_bottom_y}-{current_bottom_y}={abs(tweeter_bottom_y - current_bottom_y)}<{self.max_word_y_diff}")
                     continue
 
                 if bool(self.re_replying2.search(line_text)) or line_text == 'olarak':
-                    # print(f"line_text replying {line_text}")
+                    self._print_t(f"line_text replying {line_text}")
                     tweet_text = []
                     if not append_trailing_lines:
                         tweeter_box = None
@@ -246,22 +251,22 @@ class TextPrep:
                 if append_trailing_lines:
                     if not ending:
                         if len(self.re_only_letters_whitespace.sub('', line_text)) > 4:
-                            # print(f"eklendi: {line_text} {len(self.re_only_letters_whitespace.sub('', line_text))}")
+                            self._print_t(f"eklendi: {line_text} {len(self.re_only_letters_whitespace.sub('', line_text))}")
                             tweet_text.append(line_text)
                         elif line_index != lines_last_index:
-                            # print(f"skipped2: {line_text} {self.re_only_letters_whitespace.sub('', line_text)}")
+                            self._print_t(f"skipped2: {line_text} {self.re_only_letters_whitespace.sub('', line_text)}")
                             continue
                         else:
-                            # print(f"skipped3: {line_text} {self.re_only_letters_whitespace.sub('', line_text)}")
+                            self._print_t(f"skipped3: {line_text} {self.re_only_letters_whitespace.sub('', line_text)}")
                             pass
                     if line_index == lines_last_index or ending:
-                        # print(f"ending or: {line_text}")
+                        self._print_t(f"ending or: {line_text}")
                         if bool(tweet_text):
                             tweet_block2append = self.tweet_block(tweeter_box=tweeter_box, tweet_text_box=' '.join(tweet_text))
                             if block_i not in added_block_indexes:
                                 tweet_blocks.append(tweet_block2append)
-                                # print(tweet_block2append)
-                                # print()
+                                self._print_t(tweet_block2append)
+                                self._print_t()
                                 added_block_indexes.add(block_i)
                         tweet_text = []
                         append_trailing_lines = False
@@ -279,13 +284,13 @@ class TextPrep:
                         if bool(tweeter_box_try):
                             tweeter_box = tweeter_box_try.group(1)
                     tweeter_bottom_y = line_box[1]
-                    # print(f"found: {line_text}")
-                    # print()
+                    self._print_t(f"found: {line_text}")
+                    self._print_t()
                     append_trailing_lines = True
                 elif ending and not last_ending and last_line_left_x is not None and abs(current_line_left_x - last_line_left_x) < self.max_line_x_diff:
                     block_i_to_extract_text_from = block_i - 1
                     if line_index != 0 and all(indx not in added_block_indexes for indx in [block_i, block_i - 1]):
-                        # print(f"ending l: {line_text}")
+                        self._print_t(f"ending l: {line_text}")
                         lines_of_possible_tweet = lines_it[:line_index]
                         lines_text_only = ' '.join([li[0] for li in lines_of_possible_tweet
                                                     if self.re_endoftweet2.search(li[0]) is None and self.re_replying2.search(li[0]) is None])
@@ -293,7 +298,7 @@ class TextPrep:
                         tweet_blocks.append(tweet_block2append)
                         added_block_indexes.add(block_i)
                     elif block_i != 0 and all(indx not in added_block_indexes for indx in [block_i_to_extract_text_from, block_i_to_extract_text_from - 1]):
-                        # print(f"ending b: {line_text}")
+                        self._print_t(f"ending b: {line_text}")
                         lines_of_possible_tweet = text_blocks[block_i_to_extract_text_from][0]
                         lines_text_only = ' '.join([li[0] for li in lines_of_possible_tweet
                                                     if self.re_endoftweet2.search(li[0]) is None and self.re_replying2.search(li[0]) is None])
