@@ -53,7 +53,7 @@ class rBot:
         if self.next_token_t <= int(time()):
             self.get_new_token()
 
-        while True:
+        for _ in range(8):
             try:
                 response = self.req_sesh.request(method, url, **kwargs)
             except requests.exceptions.RetryError:
@@ -65,7 +65,7 @@ class rBot:
                 continue
             elif response.status_code == 403:
                 logger.warning("Forbidden")
-                return None
+                return -1
             else:
                 return response
 
@@ -114,8 +114,8 @@ class rBot:
             thing_id = thing.id_
         data = {'api_type': 'json', 'return_rtjson': '1', 'text': text, "thing_id": thing_id}
         reply_req = self.handled_req('POST', f"{self.base}/api/comment", data=data)
-        if reply_req is None:
-            return 0
+        if reply_req == -1:
+            return -1
         try:
             reply_s = reply_req.json()
         except:
@@ -132,9 +132,14 @@ class rBot:
                 return sleep_for
             else:
                 return 0
-        except KeyError:
+        except:
             logger.info("message sent")
             return 0
+
+    def send_pm(self, text, subject, username):
+        data = {'api_type': 'json', 'subject': subject, 'text': text, "to": username}
+        self.handled_req('POST', f"{self.base}/api/compose", data=data)
+        logger.info(f"sent pm to {username}")
 
     def check_last_comment_scores(self, limit=20):
         profile = self.handled_req('GET', f"{self.base}/user/{self.bot_username}/comments", params={"limit": limit})

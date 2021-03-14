@@ -39,12 +39,13 @@ class TWSearch:
 
             exact_phrase = True if at_dene is None else False
             tweet_dict = self.tw_client.search_tweet(tweet_text=search_text_use, from_whom=at_dene, lang=lang, exact_phrase=exact_phrase)
+
+            if not bool(tweet_dict):
+                continue
+
             tweet_link = tweet_dict.get('link')
             user_id = tweet_dict.get('user_id')
             b_could_be_quote = tweet_dict.get('b_could_be_quote')
-
-            if tweet_link is None:
-                continue
             # if tweet_link is None:
             #     db_query = tweet_database.a_query(user_id, search_text_use)
             #     if db_query:

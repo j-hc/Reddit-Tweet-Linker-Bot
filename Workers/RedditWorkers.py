@@ -1,15 +1,24 @@
 from time import sleep
 import traceback
-from collections import namedtuple
 from .Utils import JobType, PriorityEntry
 from rStuff import PostFetcher
+from dataclasses import dataclass
+from typing import Any
+
+
+@dataclass
+class _TwitterJob:
+    to_answer: Any = None
+    the_post: Any = None
+    jtype: Any = None
+    lang: str = None
 
 
 class RedditWorkers:
     bad_bot_strs = ["bad bot", "kotu bot", "kötü bot"]
     good_bot_strs = ["good bot", "iyi bot", "güzel bot", "cici bot"]
 
-    twitterJob = namedtuple('twitterJob', 'to_answer the_post jtype lang')
+    # twitterJob = namedtuple('twitterJob', 'to_answer the_post jtype lang')
 
     def __init__(self, rbot, job_q, reply_q):
         self.rbot = rbot
@@ -41,12 +50,12 @@ class RedditWorkers:
                 last_submissions_new = posts_fetcher.fetch_posts()
                 for last_submission in last_submissions_new:
                     if last_submission.is_img:
-                        job = self.twitterJob(to_answer=last_submission, the_post=last_submission, jtype=JobType.listing,
-                                              lang=last_submission.lang)
+                        job = _TwitterJob(to_answer=last_submission, the_post=last_submission, jtype=JobType.listing,
+                                          lang=last_submission.lang)
                         self.job_q.put((2, PriorityEntry(2, job)))
                         print("(SFC)maybe a job: " + last_submission.id_ + " from " + last_submission.subreddit)
                     # else:
-                        # print("(SFC)this's not a pic: " + last_submission.id_ + " from " + last_submission.subreddit)
+                    # print("(SFC)this's not a pic: " + last_submission.id_ + " from " + last_submission.subreddit)
                 sleep(self.sub_feed_listener_interval)
         except:
             while True:
@@ -78,9 +87,12 @@ class RedditWorkers:
                 answer2 = to_reply.thing
                 text = to_reply.text
                 replied = self.rbot.send_reply(text=text, thing=answer2)
-                if replied != 0:
+                if replied > 0:
                     self.reply_q.put((3, PriorityEntry(3, to_reply)))
                     sleep(replied)
+                elif replied == -1:
+                    self.rbot.send_pm(text=text, subject=f"tweet link you requested (im banned in r/{answer2.subreddit})",
+                                      username=answer2.author)
         except:
             while True:
                 traceback.print_exc()
@@ -89,8 +101,9 @@ class RedditWorkers:
     def _notif_job_builder(self, notif):
         if notif.rtype == 'username_mention':
             post = self.rbot.get_info_by_id(notif.post_id)
-            job = self.twitterJob(to_answer=notif, the_post=post, jtype=JobType.normal, lang=post.lang)
-            return job
+            if post is not None:
+                job = _TwitterJob(to_answer=notif, the_post=post, jtype=JobType.normal, lang=post.lang)
+                return job
         elif notif.rtype == "comment_reply":
             # BAD BOT
             if any(x in notif.body.lower() for x in self.bad_bot_strs):
@@ -99,9 +112,10 @@ class RedditWorkers:
                 else:
                     dt = self.rbot.get_info_by_id(notif.parent_id)
                     self.rbot.already_thanked.append_elem(notif.parent_id)
-                    if any(wrd in dt['data']['children'][0]["data"]["body"].lower() for wrd in [':(', 'to remove', 'tşk', 'tanks']):
+                    if any(wrd in dt['data']['children'][0]["data"]["body"].lower() for wrd in
+                           [':(', 'to remove', 'tşk', 'tanks']):
                         return -1
-                job = self.twitterJob(to_answer=notif, the_post=None, jtype=JobType.badbot, lang=notif.lang)
+                job = _TwitterJob(to_answer=notif, the_post=None, jtype=JobType.badbot, lang=notif.lang)
                 return job
             # GOOD BOT
             elif any(x in notif.body.lower() for x in self.good_bot_strs):
@@ -110,10 +124,11 @@ class RedditWorkers:
                 else:
                     dt = self.rbot.get_info_by_id(notif.parent_id)
                     self.rbot.already_thanked.append_elem(notif.parent_id)
-                    if any(wrd in dt['data']['children'][0]["data"]["body"].lower() for wrd in [':(', 'to remove', 'tşk', 'tanks']):
+                    if any(wrd in dt['data']['children'][0]["data"]["body"].lower() for wrd in
+                           [':(', 'to remove', 'tşk', 'tanks']):
                         return -1
 
-                job = self.twitterJob(to_answer=notif, the_post=None, jtype=JobType.goodbot, lang=notif.lang)
+                job = _TwitterJob(to_answer=notif, the_post=None, jtype=JobType.goodbot, lang=notif.lang)
                 return job
         else:
             self.rbot.read_notifs([notif])

@@ -63,6 +63,7 @@ class JobHandlerWorker:
                 imgurl = post.gallery_media[0]
             else:
                 imgurl = post.url
+            print(f" getting ocr for {imgurl} from listing {post.id_}")
             textt = self.ocr_tool.get_ocr(imgurl)
             if textt:
                 prepped_text = self.text_prepper.prep_text(textt, need_at=True)
@@ -89,10 +90,10 @@ class JobHandlerWorker:
                         return None
 
                 elif prepped_text_result == "error":
-                    # print("prolly not a tweet: " + post.id_)
+                    # print(f"prepped text err: {prepped_text}")
                     return None
             else:
-                # print("prolly not a tweet: " + post.id_)
+                print(f"text None: {post.id_}")
                 return None
 
         elif jtype == JobType.normal:
@@ -102,6 +103,7 @@ class JobHandlerWorker:
                     imgurl = post.gallery_media[0]
                 else:
                     imgurl = post.url
+                print(f" getting ocr for {imgurl} from inbox {post.id_}")
                 textt = self.ocr_tool.get_ocr(imgurl)
                 # print(textt)
                 if textt:

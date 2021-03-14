@@ -56,9 +56,9 @@ class TwitterClient:
         if exact_phrase:
             tweet_text = '"' + tweet_text + '"'
         if from_whom:
-            query = f'{tweet_text} (from:{from_whom}) exclude:retweets'
+            query = f'{tweet_text} (from:{from_whom})'
         else:
-            query = f'{tweet_text} exclude:retweets'
+            query = f'{tweet_text}'
 
         if lang == "tur":
             self.req_sesh.headers.update({'Accept-Language': "tr-TR,tr;q=0.5"})
@@ -73,8 +73,7 @@ class TwitterClient:
             ('include_want_retweets', '1'), ('include_mute_edge', '1'), ('skip_status', '1'),
             ('include_ext_alt_text', 'true'), ('include_quote_count', 'false'), ('include_reply_count', '0'),
             ('tweet_mode', 'compat'), ('include_entities', 'false'), ('include_user_entities', 'false'),
-            ('send_error_codes', 'true'), ('simple_quoted_tweet', 'false'), ('pc', '1'), ('tweet_search_mode', 'live')
-        )
+            ('send_error_codes', 'true'), ('simple_quoted_tweet', 'false'), ('pc', '1'))
         response_r = self.handled_get(f'{self.HOST}/2/search/adaptive.json', params=params)
         # print(response_r.text)
         response = response_r.json()

@@ -13,7 +13,7 @@ class VisionOCR:
     @staticmethod
     def get_ocr(picuri, raw_response=True):
         image_uri_used = False
-        if picuri.startswith('https'):
+        if picuri.startswith('http'):
             image_data = {"source": {"image_uri": picuri}}
             image_uri_used = True
         else:
@@ -24,10 +24,13 @@ class VisionOCR:
         params = {"key": vision_ocr_api_key}
         data = json.dumps({"requests": [{"image": image_data, "features": [{"type": "TEXT_DETECTION"}]}]})
         for _ in range(3):
-            response = requests.post("https://vision.googleapis.com/v1/images:annotate", data=data, params=params)
-            responses_zero = response.json()['responses'][0]
+            response = requests.post("https://vision.googleapis.com/v1/images:annotate", data=data, params=params).json()
+            if response.get('responses') is None:
+                continue
+            responses_zero = response['responses'][0]
             if responses_zero.get('textAnnotations') is None:
-                if responses_zero.get('error', {}).get('code') == 14 and image_uri_used:
+                err_code = responses_zero.get('error', {}).get('code')
+                if (err_code == 14 or err_code == 3) and image_uri_used:
                     img_b64 = VisionOCR._get_img_b64_from_url(picuri)
                     data = json.dumps({"requests": [{"image": {"content": img_b64}, "features": [{"type": "TEXT_DETECTION"}]}]})
                 continue
